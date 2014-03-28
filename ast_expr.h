@@ -4,9 +4,6 @@
  * expressions in the parse tree.  For each expression in the
  * language (add, call, New, etc.) there is a corresponding
  * node class for that construct. 
- *
- * pp4: You will need to extend the Expr classes to implement 
- * code generation for expressions.
  */
 
 
@@ -19,6 +16,7 @@
 
 class NamedType; // for new
 class Type; // for NewArray
+class ClassDecl; // for This
 
 
 class Expr : public Stmt 
@@ -26,6 +24,8 @@ class Expr : public Stmt
   public:
     Expr(yyltype loc) : Stmt(loc) {}
     Expr() : Stmt() {}
+    void Check() { CheckAndComputeResultType(); }
+    virtual Type* CheckAndComputeResultType() = 0;
 };
 
 /* This node type is used for those places where an expression is optional.
@@ -34,6 +34,7 @@ class Expr : public Stmt
 class EmptyExpr : public Expr
 {
   public:
+    Type* CheckAndComputeResultType();
 };
 
 class IntConstant : public Expr 
@@ -43,6 +44,7 @@ class IntConstant : public Expr
   
   public:
     IntConstant(yyltype loc, int val);
+    Type *CheckAndComputeResultType();
 };
 
 class DoubleConstant : public Expr 
@@ -52,6 +54,7 @@ class DoubleConstant : public Expr
     
   public:
     DoubleConstant(yyltype loc, double val);
+    Type *CheckAndComputeResultType();
 };
 
 class BoolConstant : public Expr 
@@ -61,6 +64,7 @@ class BoolConstant : public Expr
     
   public:
     BoolConstant(yyltype loc, bool val);
+    Type *CheckAndComputeResultType();
 };
 
 class StringConstant : public Expr 
@@ -70,12 +74,14 @@ class StringConstant : public Expr
     
   public:
     StringConstant(yyltype loc, const char *val);
+    Type *CheckAndComputeResultType();
 };
 
 class NullConstant: public Expr 
 {
   public: 
     NullConstant(yyltype loc) : Expr(loc) {}
+    Type *CheckAndComputeResultType();
 };
 
 class Operator : public Node 
@@ -86,6 +92,7 @@ class Operator : public Node
   public:
     Operator(yyltype loc, const char *tok);
     friend std::ostream& operator<<(std::ostream& out, Operator *o) { return out << o->tokenString; }
+    const char *str() { return tokenString; }
  };
  
 class CompoundExpr : public Expr
@@ -97,6 +104,8 @@ class CompoundExpr : public Expr
   public:
     CompoundExpr(Expr *lhs, Operator *op, Expr *rhs); // for binary
     CompoundExpr(Operator *op, Expr *rhs);             // for unary
+    void ReportErrorForIncompatibleOperands(Type *lhs, Type *rhs);
+    bool CanDoArithmetic(Type *lhs, Type *rhs);
 };
 
 class ArithmeticExpr : public CompoundExpr 
@@ -104,12 +113,14 @@ class ArithmeticExpr : public CompoundExpr
   public:
     ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     ArithmeticExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
+    Type* CheckAndComputeResultType();
 };
 
 class RelationalExpr : public CompoundExpr 
 {
   public:
     RelationalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
+    Type* CheckAndComputeResultType();
 };
 
 class EqualityExpr : public CompoundExpr 
@@ -117,6 +128,7 @@ class EqualityExpr : public CompoundExpr
   public:
     EqualityExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "EqualityExpr"; }
+    Type* CheckAndComputeResultType();
 };
 
 class LogicalExpr : public CompoundExpr 
@@ -125,6 +137,7 @@ class LogicalExpr : public CompoundExpr
     LogicalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     LogicalExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
     const char *GetPrintNameForNode() { return "LogicalExpr"; }
+    Type* CheckAndComputeResultType();
 };
 
 class AssignExpr : public CompoundExpr 
@@ -132,6 +145,7 @@ class AssignExpr : public CompoundExpr
   public:
     AssignExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
     const char *GetPrintNameForNode() { return "AssignExpr"; }
+    Type* CheckAndComputeResultType();
 };
 
 class LValue : public Expr 
@@ -142,8 +156,12 @@ class LValue : public Expr
 
 class This : public Expr 
 {
+  protected:
+    ClassDecl *enclosingClass;
+    
   public:
-    This(yyltype loc) : Expr(loc) {}
+    This(yyltype loc) : Expr(loc), enclosingClass(NULL)  {}
+    Type* CheckAndComputeResultType();
 };
 
 class ArrayAccess : public LValue 
@@ -153,6 +171,7 @@ class ArrayAccess : public LValue
     
   public:
     ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
+    Type *CheckAndComputeResultType();
 };
 
 /* Note that field access is used both for qualified names
@@ -168,6 +187,7 @@ class FieldAccess : public LValue
     
   public:
     FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
+    Type* CheckAndComputeResultType();
 };
 
 /* Like field access, call is used both for qualified base.field()
@@ -183,6 +203,8 @@ class Call : public Expr
     
   public:
     Call(yyltype loc, Expr *base, Identifier *field, List<Expr*> *args);
+    Decl *GetFnDecl();
+    Type *CheckAndComputeResultType();
 };
 
 class NewExpr : public Expr
@@ -192,6 +214,7 @@ class NewExpr : public Expr
     
   public:
     NewExpr(yyltype loc, NamedType *clsType);
+    Type* CheckAndComputeResultType();
 };
 
 class NewArrayExpr : public Expr
@@ -202,18 +225,21 @@ class NewArrayExpr : public Expr
     
   public:
     NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
+    Type* CheckAndComputeResultType();
 };
 
 class ReadIntegerExpr : public Expr
 {
   public:
     ReadIntegerExpr(yyltype loc) : Expr(loc) {}
+    Type *CheckAndComputeResultType();
 };
 
 class ReadLineExpr : public Expr
 {
   public:
     ReadLineExpr(yyltype loc) : Expr (loc) {}
+    Type *CheckAndComputeResultType();
 };
 
     

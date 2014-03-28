@@ -1,7 +1,4 @@
-/* File:  scanner.l
- * ----------------
- * Lex inupt file to generate the scanner for the compiler.
- */
+/**** scanner.l - Decaf lexical rules ********************************/
 
 %{
 
@@ -22,7 +19,7 @@
 static int curLineNum, curColNum;
 List<const char*> savedLines;
 
-static void DoBeforeEachAction(); 
+static void DoBeforeEachAction();
 #define YY_USER_ACTION DoBeforeEachAction();
 
 %}
@@ -47,7 +44,6 @@ HEX_DIGIT         ([0-9a-fA-F])
 HEX_INTEGER       (0[Xx]{HEX_DIGIT}+)
 INTEGER           ({DIGIT}+)
 EXPONENT          ([Ee][-+]?{INTEGER})
-DOUBLE            ({INTEGER}"."{DIGIT}*{EXPONENT}?)
 BEG_STRING        (\"[^"\n]*)
 STRING            ({BEG_STRING}\")
 IDENTIFIER        ([a-zA-Z][a-zA-Z_0-9]*)
@@ -81,15 +77,12 @@ SINGLE_COMMENT    ("//"[^\n]*)
  /* --------------------- Keywords ------------------------------- */
 "void"              { return T_Void;        }
 "int"               { return T_Int;         }
-"double"            { return T_Double;      }
 "bool"              { return T_Bool;        }
 "string"            { return T_String;      }
 "null"              { return T_Null;        }
 "class"             { return T_Class;       }
 "extends"           { return T_Extends;     }
 "this"              { return T_This;        }
-"interface"         { return T_Interface;   }
-"implements"        { return T_Implements;  }
 "while"             { return T_While;       }
 "for"               { return T_For;         }
 "if"                { return T_If;          }
@@ -112,7 +105,7 @@ SINGLE_COMMENT    ("//"[^\n]*)
 "&&"                { return T_And;         }
 "||"                { return T_Or;          }
 {OPERATOR}          { return yytext[0];     }
-    
+
 "[]"                { return T_Dims;        }
 
  /* -------------------- Constants ------------------------------ */
@@ -122,9 +115,7 @@ SINGLE_COMMENT    ("//"[^\n]*)
                          return T_IntConstant; }
 {HEX_INTEGER}       { yylval.integerConstant = strtol(yytext, NULL, 16);
                          return T_IntConstant; }
-{DOUBLE}            { yylval.doubleConstant = atof(yytext);
-                         return T_DoubleConstant; }
-{STRING}            { yylval.stringConstant = strdup(yytext); 
+{STRING}            { yylval.stringConstant = strdup(yytext);
                          return T_StringConstant; }
 {BEG_STRING}        { ReportError::UntermString(&yylloc, yytext); }
 
@@ -190,7 +181,5 @@ static void DoBeforeEachAction()
  */
 const char *GetLineNumbered(int num) {
    if (num <= 0 || num > savedLines.NumElements()) return NULL;
-   return savedLines.Nth(num-1); 
+   return savedLines.Nth(num-1);
 }
-
-
