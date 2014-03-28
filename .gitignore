@@ -12,4 +12,9 @@
 *.o
 
 ##** Project specific *************************************************
+lex.yy.c
+dpp.yy.c
+y.tab.c
+y.tab.h
+y.output
 dcc
