@@ -1,5 +1,7 @@
 /**** ast_stmt.cc - Statement nodes **********************************/
 
+#include <cstring>
+
 #include "ast_stmt.h"
 #include "ast_type.h"
 #include "ast_decl.h"
@@ -19,6 +21,17 @@ void Program::Check() {
 }
 
 void Program::Emit() {
+    bool main_found = false
+    for (int i = 0; !main_found && i < decls->NumElements(); i++) {
+        Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
+        if (d->IsFnDecl() && strcmp(d->GetName(), "main") == 0) {
+            main_found = true;
+        }
+    }
+    if (!main_found) {
+        ReportError::NoMainFound();
+    } else {
+    }
 }
 
 StmtBlock::StmtBlock(List<VarDecl*> *d, List<Stmt*> *s) {
@@ -95,5 +108,3 @@ void PrintStmt::Check() {
             ReportError::PrintArgMismatch(args->Nth(i),i + 1, t);
     }
 }
-
-
