@@ -8,11 +8,7 @@
 #include "ast_expr.h"
 #include "scope.h"
 #include "errors.h"
-
-Program::Program(List<Decl*> *d) {
-    Assert(d != NULL);
-    (decls=d)->SetParentAll(this);
-}
+#include "codegen.h"
 
 void Program::Check() {
     nodeScope = new Scope();
@@ -21,7 +17,7 @@ void Program::Check() {
 }
 
 void Program::Emit() {
-    bool main_found = false
+    bool main_found = false;
     for (int i = 0; !main_found && i < decls->NumElements(); i++) {
         Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
         if (d->IsFnDecl() && strcmp(d->GetName(), "main") == 0) {
@@ -31,6 +27,27 @@ void Program::Emit() {
     if (!main_found) {
         ReportError::NoMainFound();
     } else {
+        CodeGenerator *tca = new CodeGenerator();
+        CodeGen(tca, NULL);
+        tca->DoFinalCodeGen();
+    }
+}
+
+void Program::CodeGen(CodeGenerator *tca, int *var_num)
+{
+    /*
+    for (int i = 0; i < decls->NumElements(); i++) {
+        Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
+        if (d->IsVarDecl()) {
+            d->CodeGen(tca, NULL);
+        }
+    }
+    */
+    for (int i = 0; i < decls->NumElements(); i++) {
+        Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
+        if (d->IsFnDecl()) {
+            d->CodeGen(tca, NULL);
+        }
     }
 }
 

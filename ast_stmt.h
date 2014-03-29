@@ -17,8 +17,10 @@ class Program : public Node
 
     public:
         Program(List<Decl*> *declList);
+
         void Check();
         void Emit();
+        void CodeGen(CodeGenerator *tca, int *var_num);
 };
 
 class Stmt : public Node
@@ -110,6 +112,14 @@ class PrintStmt : public Stmt
         PrintStmt(List<Expr*> *arguments);
         void Check();
 };
+
+/*** Program *********************************************************/
+
+inline Program::Program(List<Decl*> *d)
+{
+    Assert(d != NULL);
+    (decls=d)->SetParentAll(this);
+}
 
 
 #endif

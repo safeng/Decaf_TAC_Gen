@@ -5,11 +5,13 @@
 
 #include "ast.h"
 #include "ast_type.h"
+#include "ast_stmt.h"
 #include "list.h"
 
 class Identifier;
 class Stmt;
 class FnDecl;
+class CodeGenerator;
 
 class Decl : public Node
 {
@@ -70,15 +72,53 @@ class FnDecl : public Decl
 
     public:
         FnDecl(Identifier *name, Type *returnType, List<VarDecl*> *formals);
+
+        bool IsFnDecl();
+        bool IsMethodDecl();
         void SetFunctionBody(Stmt *b);
+        Type *GetReturnType();
+        List<VarDecl*> *GetFormals();
+
         void Check();
         void CheckPrototype();
-        bool IsFnDecl() { return true; }
-        bool IsMethodDecl();
         bool ConflictsWithPrevious(Decl *prev);
         bool MatchesPrototype(FnDecl *other);
-        Type *GetReturnType() {return returnType; }
-        List<VarDecl*> *GetFormals() { return formals; }
+        void CodeGen(CodeGenerator *tac, int *var_num);
 };
+
+/*** FnDecl **********************************************************/
+
+inline FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n)
+{
+    Assert(n != NULL && r!= NULL && d != NULL);
+    (returnType=r)->SetParent(this);
+    (formals=d)->SetParentAll(this);
+    body = NULL;
+}
+
+inline bool FnDecl::IsFnDecl()
+{
+    return true;
+}
+
+inline bool FnDecl::IsMethodDecl()
+{
+    return dynamic_cast<ClassDecl*>(parent) != NULL;
+}
+
+inline void FnDecl::SetFunctionBody(Stmt *b)
+{
+    (body=b)->SetParent(this);
+}
+
+inline Type *FnDecl::GetReturnType()
+{
+    return returnType;
+}
+
+inline List<VarDecl*> *FnDecl::GetFormals()
+{
+    return formals;
+}
 
 #endif

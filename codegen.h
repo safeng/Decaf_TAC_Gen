@@ -18,10 +18,17 @@
 #include "list.h"
 #include "tac.h"
 
-
-// These codes are used to identify the built-in functions
-typedef enum { Alloc, ReadLine, ReadInteger, StringEqual,
-    PrintInt, PrintString, PrintBool, Halt, NumBuiltIns } BuiltIn;
+typedef enum {
+    Alloc,
+    ReadLine,
+    ReadInteger,
+    StringEqual,
+    PrintInt,
+    PrintString,
+    PrintBool,
+    Halt,
+    NumBuiltIns
+} BuiltIn;
 
 class CodeGenerator {
     private:

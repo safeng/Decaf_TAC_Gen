@@ -1,36 +1,21 @@
-/* File: ast_expr.cc
- * -----------------
- * Implementation of expression node classes.
- */
+/**** ast_expr.cc - Expression nodes *********************************/
+
+#include <cstring>
+
 #include "ast_expr.h"
 #include "ast_type.h"
 #include "ast_decl.h"
-#include <string.h>
 #include "errors.h"
-
-Type *EmptyExpr::CheckAndComputeResultType() { return Type::voidType; }
-
-IntConstant::IntConstant(yyltype loc, int val) : Expr(loc) {
-    value = val;
-}
-Type *IntConstant::CheckAndComputeResultType() {
-    return Type::intType;
-}
-
-BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc) {
-    value = val;
-}
-Type *BoolConstant::CheckAndComputeResultType() {
-    return Type::boolType;
-}
 
 StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
     Assert(val != NULL);
     value = strdup(val);
 }
+
 Type *StringConstant::CheckAndComputeResultType() {
     return Type::stringType;
 }
+
 Type *NullConstant::CheckAndComputeResultType() {
     return Type::nullType;
 }
@@ -259,7 +244,6 @@ Type *NewArrayExpr::CheckAndComputeResultType() {
     yyltype none;
     return new ArrayType(none, elemType);
 }
-
 
 Type *ReadIntegerExpr::CheckAndComputeResultType() { return Type::intType; }
 Type *ReadLineExpr::CheckAndComputeResultType() { return Type::stringType; }
