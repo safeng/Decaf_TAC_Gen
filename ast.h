@@ -5,6 +5,7 @@
 
 #include <stdlib.h>   // for NULL
 #include "location.h"
+#include "codegen.h"
 #include <iostream>
 
 class CodeGenerator;
@@ -19,6 +20,7 @@ class Node
         yyltype *location;
         Node *parent;
         Scope *nodeScope;
+        Hashtable<Location*> *varLocation;
 
     public:
         Node(yyltype loc);
@@ -32,7 +34,9 @@ class Node
         typedef enum { kShallow, kDeep } lookup;
         virtual Decl *FindDecl(Identifier *id, lookup l = kDeep);
         virtual Scope *PrepareScope() { return NULL; }
-        virtual void CodeGen(CodeGenerator *tca, int *var_num) {}
+        virtual void PrepareVarLocation() {}
+        virtual Location* CodeGen(CodeGenerator *tca, int *var_num) {}
+        Location* FindLocation(Identifier * id, lookup l = kDeep);
         template <class Specific> Specific *FindSpecificParent() {
             Node *p = parent;
             while (p) {

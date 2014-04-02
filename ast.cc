@@ -12,12 +12,14 @@ Node::Node(yyltype loc) {
     location = new yyltype(loc);
     parent = NULL;
     nodeScope = NULL;
+    varLocation = NULL;
 }
 
 Node::Node() {
     location = NULL;
     parent = NULL;
     nodeScope = NULL;
+    varLocation = NULL;
 }
 
 Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
@@ -27,6 +29,16 @@ Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
         return mine;
     if (l == kDeep && parent)
         return parent->FindDecl(idToFind, l);
+    return NULL;
+}
+
+Location *Node::FindLocation(Identifier *id, lookup l){
+    Location *loc;
+    if(!varLocation) PrepareVarLocation();
+    if(varLocation && (loc = varLocation->Lookup(id->GetName())))
+        return loc;
+    if(l == kDeep && parent)
+        return parent->FindLocation(id, l);
     return NULL;
 }
 

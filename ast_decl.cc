@@ -126,7 +126,7 @@ bool FnDecl::MatchesPrototype(FnDecl *other)
     return true;
 }
 
-void FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
+Location *FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
 {
     BeginFunc *begin_func;
     int sub_var_num = 0;

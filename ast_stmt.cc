@@ -33,7 +33,7 @@ void Program::Emit() {
     }
 }
 
-void Program::CodeGen(CodeGenerator *tca, int *var_num)
+Location *Program::CodeGen(CodeGenerator *tca, int *var_num)
 {
     /*
     for (int i = 0; i < decls->NumElements(); i++) {

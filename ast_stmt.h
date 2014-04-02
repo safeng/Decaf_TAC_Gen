@@ -20,7 +20,7 @@ class Program : public Node
 
         void Check();
         void Emit();
-        void CodeGen(CodeGenerator *tca, int *var_num);
+        Location * CodeGen(CodeGenerator *tca, int *var_num);
 };
 
 class Stmt : public Node
