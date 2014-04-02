@@ -47,7 +47,6 @@ Identifier::Identifier(yyltype loc, const char *n) : Node(loc) {
     cached = NULL;
 }
 
-
 Decl *Identifier::GetDeclRelativeToBase(Type *baseType)
 {
     if (!cached) {
@@ -61,4 +60,10 @@ Decl *Identifier::GetDeclRelativeToBase(Type *baseType)
         }
     }
     return cached;
+}
+
+/*** class errornode *************************************************/
+
+Error::Error() : Node()
+{
 }

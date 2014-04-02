@@ -13,7 +13,7 @@ Scope::Scope()
     table = new Hashtable<Decl*>;
 }
 
-Iterator<Decl*> GetIterator()
+Iterator<Decl*> Scope::GetIterator()
 {
     return table->GetIterator();
 }

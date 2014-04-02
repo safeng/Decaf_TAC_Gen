@@ -49,6 +49,8 @@ Location *Program::CodeGen(CodeGenerator *tca, int *var_num)
             d->CodeGen(tca, NULL);
         }
     }
+
+    return NULL;
 }
 
 StmtBlock::StmtBlock(List<VarDecl*> *d, List<Stmt*> *s) {

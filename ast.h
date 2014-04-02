@@ -14,6 +14,8 @@ class Decl;
 class Identifier;
 class Type;
 
+/*** class node ******************************************************/
+
 class Node
 {
     protected:
@@ -35,7 +37,7 @@ class Node
         virtual Decl *FindDecl(Identifier *id, lookup l = kDeep);
         virtual Scope *PrepareScope() { return NULL; }
         virtual void PrepareVarLocation() {}
-        virtual Location* CodeGen(CodeGenerator *tca, int *var_num) {}
+        virtual Location* CodeGen(CodeGenerator *tca, int *var_num);
         Location* FindLocation(Identifier * id, lookup l = kDeep);
         template <class Specific> Specific *FindSpecificParent() {
             Node *p = parent;
@@ -47,6 +49,12 @@ class Node
         }
 };
 
+inline Location* Node::CodeGen(CodeGenerator *tca, int *var_num)
+{
+    return NULL;
+}
+
+/*** class identifier ************************************************/
 
 class Identifier : public Node
 {
@@ -62,15 +70,15 @@ class Identifier : public Node
 };
 
 
-// This node class is designed to represent a portion of the tree that
-// encountered syntax errors during parsing. The partial completed tree
-// is discarded along with the states being popped, and an instance of
-// the Error class can stand in as the placeholder in the parse tree
-// when your parser can continue after an error.
+/*** class errornode **************************************************
+ *
+ *  A placeholder class that is used for implementing error recovery in
+ *  syntax analysis.                                                 */
+
 class Error : public Node
 {
     public:
-        Error() : Node() {}
+        Error();
 };
 
 #endif

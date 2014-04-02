@@ -131,7 +131,7 @@ void FnDecl::PrepareVarLocation()
 {
     varLocation = new Hashtable<Location*>();
     for (int i = 0; i < formals->NumElements(); i++) {
-        char *vname = formals->Nth(i)->GetName();
+        const char *vname = formals->Nth(i)->GetName();
         Location *loc = new Location(fpRelative,
                                      CodeGenerator::OffsetToFirstParam * i,
                                      vname);
@@ -149,4 +149,5 @@ Location *FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
     //body->CodeGen(tac, &sub_var_num);
     tac->GenEndFunc();
     begin_func->SetFrameSize(sub_var_num);
+    return NULL;
 }
