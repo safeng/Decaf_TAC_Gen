@@ -6,6 +6,7 @@
 #include "scope.h"
 #include "errors.h"
 #include "codegen.h"
+#include "tac.h"
 
 Decl::Decl(Identifier *n) : Node(*n->GetLocation()) {
     Assert(n != NULL);
@@ -126,10 +127,23 @@ bool FnDecl::MatchesPrototype(FnDecl *other)
     return true;
 }
 
+void FnDecl::PrepareVarLocation()
+{
+    varLocation = new Hashtable<Location*>();
+    for (int i = 0; i < formals->NumElements(); i++) {
+        char *vname = formals->Nth(i)->GetName();
+        Location *loc = new Location(fpRelative,
+                                     CodeGenerator::OffsetToFirstParam * i,
+                                     vname);
+        varLocation->Enter(vname, loc);
+    }
+}
+
 Location *FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
 {
     BeginFunc *begin_func;
     int sub_var_num = 0;
+    PrepareVarLocation();
     tac->GenLabel(strcat(strndup("_", 1), id->GetName()));
     begin_func = tac->GenBeginFunc();
     //body->CodeGen(tac, &sub_var_num);

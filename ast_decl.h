@@ -83,6 +83,7 @@ class FnDecl : public Decl
         void CheckPrototype();
         bool ConflictsWithPrevious(Decl *prev);
         bool MatchesPrototype(FnDecl *other);
+        void PrepareVarLocation();
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
 
