@@ -11,19 +11,19 @@
 
 class Decl;
 class Identifier;
-class ClassDecl; 
+class ClassDecl;
 
-class Scope { 
-  protected:
-    Hashtable<Decl*> *table;
+class Scope {
+    protected:
+        Hashtable<Decl*> *table;
 
-  public:
-    Scope();
+    public:
+        Scope();
 
-    Decl *Lookup(Identifier *id);
-    bool Declare(Decl *dec);
-    void CopyFromScope(Scope *other, ClassDecl *cd);
+        Iterator<Decl*> GetIterator();
+        Decl *Lookup(Identifier *id);
+        bool Declare(Decl *dec);
+        void CopyFromScope(Scope *other, ClassDecl *cd);
 };
-
 
 #endif
