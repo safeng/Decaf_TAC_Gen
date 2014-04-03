@@ -7,23 +7,40 @@
 #include "ast_decl.h"
 #include "errors.h"
 
-StringConstant::StringConstant(yyltype loc, const char *val) : Expr(loc) {
+/*** class int_const *************************************************/
+
+IntConstant::IntConstant(yyltype loc, int val) : Expr(loc)
+{
+    value = val;
+}
+
+/*** class bool_const ************************************************/
+
+BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc)
+{
+    value = val;
+}
+
+/*** class str_const *************************************************/
+
+StringConstant::StringConstant(yyltype loc, const char *val)
+    : Expr(loc)
+{
     Assert(val != NULL);
     value = strdup(val);
 }
 
-Type *StringConstant::CheckAndComputeResultType() {
-    return Type::stringType;
-}
+/*** class null_const ************************************************/
 
-Type *NullConstant::CheckAndComputeResultType() {
-    return Type::nullType;
+NullConstant::NullConstant(yyltype loc) : Expr(loc)
+{
 }
 
 Operator::Operator(yyltype loc, const char *tok) : Node(loc) {
     Assert(tok != NULL);
     strncpy(tokenString, tok, sizeof(tokenString));
 }
+
 CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
     : Expr(Join(l->GetLocation(), r->GetLocation())) {
         Assert(l != NULL && o != NULL && r != NULL);

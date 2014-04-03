@@ -29,6 +29,8 @@ class EmptyExpr : public Expr
         Type* CheckAndComputeResultType();
 };
 
+/*** class int_const *************************************************/
+
 class IntConstant : public Expr
 {
     protected:
@@ -36,18 +38,22 @@ class IntConstant : public Expr
 
     public:
         IntConstant(yyltype loc, int val);
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tca, int *nvar);
 };
 
-class DoubleConstant : public Expr
+inline Type *IntConstant::CheckAndComputeResultType()
 {
-    protected:
-        double value;
+    return Type::intType;
+}
 
-    public:
-        DoubleConstant(yyltype loc, double val);
-        Type *CheckAndComputeResultType();
-};
+inline Location* IntConstant::CodeGen(CodeGenerator *tca, int *nvar)
+{
+    return tca->GenLoadConstant(nvar, value);
+}
+
+/*** class bool_const ************************************************/
 
 class BoolConstant : public Expr
 {
@@ -56,8 +62,22 @@ class BoolConstant : public Expr
 
     public:
         BoolConstant(yyltype loc, bool val);
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tca, int *nvar);
 };
+
+inline Type *BoolConstant::CheckAndComputeResultType()
+{
+    return Type::boolType;
+}
+
+inline Location* BoolConstant::CodeGen(CodeGenerator *tca, int *nvar)
+{
+    return tca->GenLoadConstant(nvar, value ? 1 : 0);
+}
+
+/*** class str_const *************************************************/
 
 class StringConstant : public Expr
 {
@@ -66,15 +86,41 @@ class StringConstant : public Expr
 
     public:
         StringConstant(yyltype loc, const char *val);
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tca, int *nvar);
 };
+
+inline Type *StringConstant::CheckAndComputeResultType()
+{
+    return Type::stringType;
+}
+
+inline Location* StringConstant::CodeGen(CodeGenerator *tca, int *nvar)
+{
+    return tca->GenLoadConstant(nvar, value);
+}
+
+/*** class null_const ************************************************/
 
 class NullConstant: public Expr
 {
     public:
-        NullConstant(yyltype loc) : Expr(loc) {}
+        NullConstant(yyltype loc);
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tca, int *nvar);
 };
+
+inline Type *NullConstant::CheckAndComputeResultType()
+{
+    return Type::nullType;
+}
+
+inline Location* NullConstant::CodeGen(CodeGenerator *tca, int *nvar)
+{
+    return tca->GenLoadConstant(nvar, 0);
+}
 
 class Operator : public Node
 {
@@ -254,30 +300,6 @@ inline void Expr::Check()
 inline Type *EmptyExpr::CheckAndComputeResultType()
 {
     return Type::voidType;
-}
-
-/*** IntConstant *****************************************************/
-
-inline IntConstant::IntConstant(yyltype loc, int val) : Expr(loc)
-{
-    value = val;
-}
-
-inline Type *IntConstant::CheckAndComputeResultType()
-{
-    return Type::intType;
-}
-
-/*** BoolConstant ****************************************************/
-
-inline BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc)
-{
-    value = val;
-}
-
-inline Type *BoolConstant::CheckAndComputeResultType()
-{
-    return Type::boolType;
 }
 
 #endif
