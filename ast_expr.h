@@ -12,6 +12,8 @@ class ClassDecl;
 class NamedType;
 class Type;
 
+/*** class expr ******************************************************/
+
 class Expr : public Stmt
 {
     public:
@@ -23,11 +25,23 @@ class Expr : public Stmt
         void Check();
 };
 
+inline void Expr::Check()
+{
+    CheckAndComputeResultType();
+}
+
+/*** class empty_expr ************************************************/
+
 class EmptyExpr : public Expr
 {
     public:
         Type* CheckAndComputeResultType();
 };
+
+inline Type *EmptyExpr::CheckAndComputeResultType()
+{
+    return Type::voidType;
+}
 
 /*** class int_const *************************************************/
 
@@ -40,7 +54,7 @@ class IntConstant : public Expr
         IntConstant(yyltype loc, int val);
 
         Type *CheckAndComputeResultType();
-        Location* CodeGen(CodeGenerator *tca, int *nvar);
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 inline Type *IntConstant::CheckAndComputeResultType()
@@ -48,9 +62,9 @@ inline Type *IntConstant::CheckAndComputeResultType()
     return Type::intType;
 }
 
-inline Location* IntConstant::CodeGen(CodeGenerator *tca, int *nvar)
+inline Location* IntConstant::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    return tca->GenLoadConstant(nvar, value);
+    return tac->GenLoadConstant(nvar, value);
 }
 
 /*** class bool_const ************************************************/
@@ -64,7 +78,7 @@ class BoolConstant : public Expr
         BoolConstant(yyltype loc, bool val);
 
         Type *CheckAndComputeResultType();
-        Location* CodeGen(CodeGenerator *tca, int *nvar);
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 inline Type *BoolConstant::CheckAndComputeResultType()
@@ -72,9 +86,9 @@ inline Type *BoolConstant::CheckAndComputeResultType()
     return Type::boolType;
 }
 
-inline Location* BoolConstant::CodeGen(CodeGenerator *tca, int *nvar)
+inline Location* BoolConstant::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    return tca->GenLoadConstant(nvar, value ? 1 : 0);
+    return tac->GenLoadConstant(nvar, value ? 1 : 0);
 }
 
 /*** class str_const *************************************************/
@@ -88,7 +102,7 @@ class StringConstant : public Expr
         StringConstant(yyltype loc, const char *val);
 
         Type *CheckAndComputeResultType();
-        Location* CodeGen(CodeGenerator *tca, int *nvar);
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 inline Type *StringConstant::CheckAndComputeResultType()
@@ -96,9 +110,9 @@ inline Type *StringConstant::CheckAndComputeResultType()
     return Type::stringType;
 }
 
-inline Location* StringConstant::CodeGen(CodeGenerator *tca, int *nvar)
+inline Location* StringConstant::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    return tca->GenLoadConstant(nvar, value);
+    return tac->GenLoadConstant(nvar, value);
 }
 
 /*** class null_const ************************************************/
@@ -109,7 +123,7 @@ class NullConstant: public Expr
         NullConstant(yyltype loc);
 
         Type *CheckAndComputeResultType();
-        Location* CodeGen(CodeGenerator *tca, int *nvar);
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 inline Type *NullConstant::CheckAndComputeResultType()
@@ -117,10 +131,12 @@ inline Type *NullConstant::CheckAndComputeResultType()
     return Type::nullType;
 }
 
-inline Location* NullConstant::CodeGen(CodeGenerator *tca, int *nvar)
+inline Location* NullConstant::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    return tca->GenLoadConstant(nvar, 0);
+    return tac->GenLoadConstant(nvar, 0);
 }
+
+/*** class operat ****************************************************/
 
 class Operator : public Node
 {
@@ -129,61 +145,91 @@ class Operator : public Node
 
     public:
         Operator(yyltype loc, const char *tok);
-        friend std::ostream& operator<<(std::ostream& out, Operator *o) { return out << o->tokenString; }
-        const char *str() { return tokenString; }
+        friend std::ostream& operator<<(std::ostream& out,
+                                        Operator *o);
+        const char *str();
 };
+
+inline std::ostream& operator<<(std::ostream& out, Operator *o)
+{
+    return out << o->tokenString;
+}
+
+inline const char *Operator::str()
+{
+    return tokenString;
+}
+
+/*** class compound_expr *********************************************/
 
 class CompoundExpr : public Expr
 {
     protected:
         Operator *op;
-        Expr *left, *right; // left will be NULL if unary
+        Expr *left, *right;
 
     public:
-        CompoundExpr(Expr *lhs, Operator *op, Expr *rhs); // for binary
-        CompoundExpr(Operator *op, Expr *rhs);             // for unary
+        CompoundExpr(Expr *lhs, Operator *op, Expr *rhs);
+        CompoundExpr(Operator *op, Expr *rhs);
         void ReportErrorForIncompatibleOperands(Type *lhs, Type *rhs);
         bool CanDoArithmetic(Type *lhs, Type *rhs);
 };
 
+/*** class arith_expr ************************************************/
+
 class ArithmeticExpr : public CompoundExpr
 {
     public:
-        ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
-        ArithmeticExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
+        ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs);
+        ArithmeticExpr(Operator *op, Expr *rhs);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+/*** class rel_expr **************************************************/
 
 class RelationalExpr : public CompoundExpr
 {
     public:
-        RelationalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
+        RelationalExpr(Expr *lhs, Operator *op, Expr *rhs);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+/*** class eq_expr ***************************************************/
 
 class EqualityExpr : public CompoundExpr
 {
     public:
-        EqualityExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
-        const char *GetPrintNameForNode() { return "EqualityExpr"; }
+        EqualityExpr(Expr *lhs, Operator *op, Expr *rhs);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+/*** class log_expr **************************************************/
 
 class LogicalExpr : public CompoundExpr
 {
     public:
-        LogicalExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
-        LogicalExpr(Operator *op, Expr *rhs) : CompoundExpr(op,rhs) {}
-        const char *GetPrintNameForNode() { return "LogicalExpr"; }
+        LogicalExpr(Expr *lhs, Operator *op, Expr *rhs);
+        LogicalExpr(Operator *op, Expr *rhs);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+/*** class assign_expr ***********************************************/
 
 class AssignExpr : public CompoundExpr
 {
     public:
-        AssignExpr(Expr *lhs, Operator *op, Expr *rhs) : CompoundExpr(lhs,op,rhs) {}
-        const char *GetPrintNameForNode() { return "AssignExpr"; }
+        AssignExpr(Expr *lhs, Operator *op, Expr *rhs);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 class LValue : public Expr
@@ -192,15 +238,21 @@ class LValue : public Expr
         LValue(yyltype loc) : Expr(loc) {}
 };
 
+/*** class this_obj **************************************************/
+
 class This : public Expr
 {
     protected:
         ClassDecl *enclosingClass;
 
     public:
-        This(yyltype loc) : Expr(loc), enclosingClass(NULL)  {}
+        This(yyltype loc);
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+/*** class array_acc *************************************************/
 
 class ArrayAccess : public LValue
 {
@@ -279,27 +331,5 @@ class ReadLineExpr : public Expr
         ReadLineExpr(yyltype loc) : Expr (loc) {}
         Type *CheckAndComputeResultType();
 };
-
-/*** Expr ************************************************************/
-
-inline Expr::Expr(yyltype loc) : Stmt(loc)
-{
-}
-
-inline Expr::Expr() : Stmt()
-{
-}
-
-inline void Expr::Check()
-{
-    CheckAndComputeResultType();
-}
-
-/*** EmptyExpr *******************************************************/
-
-inline Type *EmptyExpr::CheckAndComputeResultType()
-{
-    return Type::voidType;
-}
 
 #endif

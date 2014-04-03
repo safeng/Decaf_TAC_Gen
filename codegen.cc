@@ -75,7 +75,6 @@ void CodeGenerator::GenStore(Location *dst, Location *src, int offset)
     code->Append(new Store(dst, src, offset));
 }
 
-
 Location *CodeGenerator::GenBinaryOp(int *nvar, const char *opName,
                                      Location *op1, Location *op2)
 {
@@ -151,15 +150,16 @@ static struct _builtin {
     const char *label;
     int numArgs;
     bool hasReturn;
-} builtins[] =
-{{"_Alloc", 1, true},
+} builtins[] = {
+    {"_Alloc", 1, true},
     {"_ReadLine", 0, true},
     {"_ReadInteger", 0, true},
     {"_StringEqual", 2, true},
     {"_PrintInt", 1, false},
     {"_PrintString", 1, false},
     {"_PrintBool", 1, false},
-    {"_Halt", 0, false}};
+    {"_Halt", 0, false}
+};
 
 Location *CodeGenerator::GenBuiltInCall(int *nvar, BuiltIn bn,
                                         Location *arg1, Location *arg2)

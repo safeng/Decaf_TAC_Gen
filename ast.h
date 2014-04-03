@@ -38,7 +38,7 @@ class Node
         virtual Scope *PrepareScope() { return NULL; }
         virtual void PrepareVarLocation() {}
         virtual Location* CodeGen(CodeGenerator *tca, int *var_num);
-        Location* FindLocation(Identifier *id, lookup l = kDeep);
+        Location* FindLocation(const char* query, lookup l = kDeep);
         template <class Specific> Specific *FindSpecificParent() {
             Node *p = parent;
             while (p) {

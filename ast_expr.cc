@@ -7,6 +7,16 @@
 #include "ast_decl.h"
 #include "errors.h"
 
+/*** class expr ******************************************************/
+
+Expr::Expr(yyltype loc) : Stmt(loc)
+{
+}
+
+Expr::Expr() : Stmt()
+{
+}
+
 /*** class int_const *************************************************/
 
 IntConstant::IntConstant(yyltype loc, int val) : Expr(loc)
@@ -36,27 +46,35 @@ NullConstant::NullConstant(yyltype loc) : Expr(loc)
 {
 }
 
-Operator::Operator(yyltype loc, const char *tok) : Node(loc) {
+/*** class operat ****************************************************/
+
+Operator::Operator(yyltype loc, const char *tok) : Node(loc)
+{
     Assert(tok != NULL);
     strncpy(tokenString, tok, sizeof(tokenString));
 }
 
 CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
-    : Expr(Join(l->GetLocation(), r->GetLocation())) {
-        Assert(l != NULL && o != NULL && r != NULL);
-        (op=o)->SetParent(this);
-        (left=l)->SetParent(this);
-        (right=r)->SetParent(this);
-    }
+    : Expr(Join(l->GetLocation(), r->GetLocation()))
+{
+    Assert(l != NULL && o != NULL && r != NULL);
+    (op=o)->SetParent(this);
+    (left=l)->SetParent(this);
+    (right=r)->SetParent(this);
+}
 
 CompoundExpr::CompoundExpr(Operator *o, Expr *r)
-    : Expr(Join(o->GetLocation(), r->GetLocation())) {
-        Assert(o != NULL && r != NULL);
-        left = NULL;
-        (op=o)->SetParent(this);
-        (right=r)->SetParent(this);
-    }
-void CompoundExpr::ReportErrorForIncompatibleOperands(Type *lhs, Type *rhs) {
+    : Expr(Join(o->GetLocation(), r->GetLocation()))
+{
+    Assert(o != NULL && r != NULL);
+    left = NULL;
+    (op=o)->SetParent(this);
+    (right=r)->SetParent(this);
+}
+
+void CompoundExpr::ReportErrorForIncompatibleOperands(Type *lhs,
+                                                      Type *rhs)
+{
     if (!lhs) { //unary op
         ReportError::IncompatibleOperand(op, rhs);
     } else { // binary op
@@ -64,7 +82,8 @@ void CompoundExpr::ReportErrorForIncompatibleOperands(Type *lhs, Type *rhs) {
     }
 }
 
-bool CompoundExpr::CanDoArithmetic(Type *lhs, Type *rhs) {
+bool CompoundExpr::CanDoArithmetic(Type *lhs, Type *rhs)
+{
     if (lhs && lhs != Type::errorType && rhs != Type::errorType)
         return rhs->IsNumeric() && rhs->IsEquivalentTo(lhs);
     if (!lhs || lhs == Type::errorType)
@@ -72,8 +91,20 @@ bool CompoundExpr::CanDoArithmetic(Type *lhs, Type *rhs) {
     return rhs != Type::errorType || lhs->IsNumeric();
 }
 
+/*** class arith_expr ************************************************/
 
-Type *GetResultType(Type *lhs, Type *rhs) {
+ArithmeticExpr::ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs)
+    : CompoundExpr(lhs,op,rhs)
+{
+}
+
+ArithmeticExpr::ArithmeticExpr(Operator *op, Expr *rhs)
+    : CompoundExpr(op,rhs)
+{
+}
+
+Type *GetResultType(Type *lhs, Type *rhs)
+{
     Type *lesser = rhs;
     if (lhs) lesser = lesser->LesserType(lhs);
     if (!lesser || !lesser->IsNumeric())
@@ -81,77 +112,222 @@ Type *GetResultType(Type *lhs, Type *rhs) {
     return lesser;
 }
 
-Type*ArithmeticExpr::CheckAndComputeResultType() {
-    Type *lType = left?left->CheckAndComputeResultType():NULL, *rType = right->CheckAndComputeResultType();
+Type *ArithmeticExpr::CheckAndComputeResultType()
+{
+    Type *rType = right->CheckAndComputeResultType();
+    Type *lType = NULL;
+    if (left != NULL) {
+        lType = left->CheckAndComputeResultType();
+    }
     if (!CanDoArithmetic(lType, rType))
         ReportErrorForIncompatibleOperands(lType, rType);
     return GetResultType(lType, rType);
 }
 
-Type* RelationalExpr::CheckAndComputeResultType() {
-    Type*lhs = left->CheckAndComputeResultType(), *rhs = right->CheckAndComputeResultType();
+Location* ArithmeticExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *right_loc = right->CodeGen(tac, nvar);
+    Location *left_loc = NULL;
+    if (left == NULL) {
+        left_loc = tac->GenLoadConstant(nvar, 0);
+    } else {
+        left_loc = left->CodeGen(tac, nvar);
+    }
+    return tac->GenBinaryOp(nvar, op->str(), left_loc, right_loc);
+}
+
+/*** class rel_expr **************************************************/
+
+RelationalExpr::RelationalExpr(Expr *lhs, Operator *op, Expr *rhs)
+    : CompoundExpr(lhs,op,rhs)
+{
+}
+
+Type *RelationalExpr::CheckAndComputeResultType()
+{
+    Type *lhs = left->CheckAndComputeResultType();
+    Type *rhs = right->CheckAndComputeResultType();
     if (!CanDoArithmetic(lhs, rhs))
         ReportErrorForIncompatibleOperands(lhs, rhs);
     return Type::boolType;
 }
 
-Type* EqualityExpr::CheckAndComputeResultType() {
-    Type*lhs = left->CheckAndComputeResultType(), *rhs = right->CheckAndComputeResultType();
+Location* RelationalExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *left_loc = left->CodeGen(tac, nvar);
+    Location *right_loc = right->CodeGen(tac, nvar);
+    if (strcmp(op->str(), "<") == 0) {
+        return tac->GenBinaryOp(nvar, "<", left_loc, right_loc);
+    } else if (strcmp(op->str(), ">") == 0) {
+        return tac->GenBinaryOp(nvar, "<", right_loc, left_loc);
+    } else if (strcmp(op->str(), "<=") == 0) {
+        Location *neg_loc = tac->GenBinaryOp(nvar, "<", right_loc,
+                                             left_loc);
+        Location *const0 = tac->GenLoadConstant(nvar, 0);
+        return tac->GenBinaryOp(nvar, "==", neg_loc, const0);
+    } else {
+        Location *neg_loc = tac->GenBinaryOp(nvar, "<", left_loc,
+                                             right_loc);
+        Location *const0 = tac->GenLoadConstant(nvar, 0);
+        return tac->GenBinaryOp(nvar, "==", neg_loc, const0);
+    }
+}
+
+/*** class eq_expr ***************************************************/
+
+EqualityExpr::EqualityExpr(Expr *lhs, Operator *op, Expr *rhs)
+    : CompoundExpr(lhs, op, rhs)
+{
+}
+
+Type* EqualityExpr::CheckAndComputeResultType()
+{
+    Type *lhs = left->CheckAndComputeResultType();
+    Type *rhs = right->CheckAndComputeResultType();
     if (!lhs->IsCompatibleWith(rhs) && !rhs->IsCompatibleWith(lhs))
         ReportErrorForIncompatibleOperands(lhs, rhs);
     return Type::boolType;
 }
 
-Type* LogicalExpr::CheckAndComputeResultType() {
-    Type *lhs = left ?left->CheckAndComputeResultType() :NULL, *rhs = right->CheckAndComputeResultType();
+Location* EqualityExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *left_loc = left->CodeGen(tac, nvar);
+    Location *right_loc = right->CodeGen(tac, nvar);
+    if (op->str()[0] == '=') {
+        return tac->GenBinaryOp(nvar, "==", left_loc, right_loc);
+    } else {
+        Location *neg_loc = tac->GenBinaryOp(nvar, "==", left_loc,
+                                             right_loc);
+        Location *const0 = tac->GenLoadConstant(nvar, 0);
+        return tac->GenBinaryOp(nvar, "==", neg_loc, const0);
+    }
+}
+
+/*** class log_expr **************************************************/
+
+LogicalExpr::LogicalExpr(Expr *lhs, Operator *op, Expr *rhs)
+    : CompoundExpr(lhs,op,rhs)
+{
+}
+
+LogicalExpr::LogicalExpr(Operator *op, Expr *rhs)
+    : CompoundExpr(op,rhs)
+{
+}
+
+Type *LogicalExpr::CheckAndComputeResultType()
+{
+    Type *rhs = right->CheckAndComputeResultType();
+    Type *lhs = NULL;
+    if (left != NULL) {
+        lhs = left->CheckAndComputeResultType();
+    }
     if ((lhs && !lhs->IsCompatibleWith(Type::boolType)) ||
         (!rhs->IsCompatibleWith(Type::boolType)))
         ReportErrorForIncompatibleOperands(lhs, rhs);
     return Type::boolType;
 }
 
-Type * AssignExpr::CheckAndComputeResultType() {
-    Type *lhs = left->CheckAndComputeResultType(), *rhs = right->CheckAndComputeResultType();
+Location* LogicalExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *right_loc = right->CodeGen(tac, nvar);
+    if (left == NULL) {
+        Location *const0 = tac->GenLoadConstant(nvar, 0);
+        return tac->GenBinaryOp(nvar, "==", right_loc, const0);
+    } else {
+        Location *left_loc = left->CodeGen(tac, nvar);
+        return tac->GenBinaryOp(nvar, op->str(), left_loc, right_loc);
+    }
+}
+
+/*** class assign_expr ***********************************************/
+
+AssignExpr::AssignExpr(Expr *lhs, Operator *op, Expr *rhs)
+    : CompoundExpr(lhs,op,rhs)
+{
+}
+
+Type *AssignExpr::CheckAndComputeResultType()
+{
+    Type *lhs = left->CheckAndComputeResultType();
+    Type *rhs = right->CheckAndComputeResultType();
     if (!rhs->IsCompatibleWith(lhs)) {
         ReportErrorForIncompatibleOperands(lhs, rhs);
         return Type::errorType;
     }
     return lhs;
 }
-Type* This::CheckAndComputeResultType() {
-    if (!enclosingClass) enclosingClass = FindSpecificParent<ClassDecl>();
-    if (!enclosingClass)
+
+Location* AssignExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *left_loc = left->CodeGen(tac, nvar);
+    Location *right_loc = right->CodeGen(tac, nvar);
+    tac->GenAssign(left_loc, right_loc);
+    return left_loc;
+}
+
+/*** class this_obj **************************************************/
+
+This::This(yyltype loc) : Expr(loc)
+{
+    enclosingClass = NULL;
+}
+
+Type* This::CheckAndComputeResultType()
+{
+    if (!enclosingClass) {
+        enclosingClass = FindSpecificParent<ClassDecl>();
+    }
+    if (!enclosingClass) {
         ReportError::ThisOutsideClassScope(this);
-    if (!enclosingClass) return Type::errorType;
-    return enclosingClass->GetDeclaredType();
+        return Type::errorType;
+    } else {
+        return enclosingClass->GetDeclaredType();
+    }
 }
 
-
-
-ArrayAccess::ArrayAccess(yyltype loc, Expr *b, Expr *s) : LValue(loc) {
-    (base=b)->SetParent(this);
-    (subscript=s)->SetParent(this);
+Location* This::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    return FindLocation("this");
 }
-Type *ArrayAccess::CheckAndComputeResultType() {
+
+/*** class array_acc *************************************************/
+
+ArrayAccess::ArrayAccess(yyltype loc, Expr *b, Expr *s) : LValue(loc)
+{
+    base = b;
+    base->SetParent(this);
+    subscript = s;
+    subscript->SetParent(this);
+}
+
+Type *ArrayAccess::CheckAndComputeResultType()
+{
     Type *baseT = base->CheckAndComputeResultType();
-    if ((baseT != Type::errorType) && !baseT->IsArrayType())
+    if ((baseT != Type::errorType) && !baseT->IsArrayType()) {
         ReportError::BracketsOnNonArray(base);
+    }
     if (!subscript->CheckAndComputeResultType()->IsCompatibleWith(Type::intType))
         ReportError::SubscriptNotInteger(subscript);
-    return baseT->IsArrayType() ? dynamic_cast<ArrayType*>(baseT)->GetArrayElemType() : Type::errorType;
+    if (baseT->IsArrayType()) {
+        return dynamic_cast<ArrayType*>(baseT)->GetArrayElemType();
+    } else {
+        return Type::errorType;
+    }
+}
+
+FieldAccess::FieldAccess(Expr *b, Identifier *f)
+    : LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation())
+{
+    Assert(f != NULL); // b can be be NULL (just means no explicit base)
+    base = b;
+    if (base) base->SetParent(this);
+    (field=f)->SetParent(this);
 }
 
 
-FieldAccess::FieldAccess(Expr *b, Identifier *f)
-    : LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation()) {
-        Assert(f != NULL); // b can be be NULL (just means no explicit base)
-        base = b;
-        if (base) base->SetParent(this);
-        (field=f)->SetParent(this);
-    }
-
-
-Type* FieldAccess::CheckAndComputeResultType() {
+Type* FieldAccess::CheckAndComputeResultType()
+{
     Type *baseType = base ? base->CheckAndComputeResultType() : NULL;
     Decl *ivar = field->GetDeclRelativeToBase(baseType);
     if (ivar && ivar->IsIvarDecl() && !base) { // add implicit "this"

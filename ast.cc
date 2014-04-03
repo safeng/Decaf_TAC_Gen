@@ -32,14 +32,19 @@ Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
     return NULL;
 }
 
-Location *Node::FindLocation(Identifier *id, lookup l){
+Location *Node::FindLocation(const char *query, lookup l)
+{
     Location *loc;
-    if(!varLocation) PrepareVarLocation();
-    if(varLocation && (loc = varLocation->Lookup(id->GetName())))
+    if (varLocation != NULL) {
+        PrepareVarLocation();
+    }
+    if (varLocation != NULL && (loc = varLocation->Lookup(query))) {
         return loc;
-    if(l == kDeep && parent)
-        return parent->FindLocation(id, l);
-    return NULL;
+    } else if (l == kDeep && parent != NULL) {
+        return parent->FindLocation(query, l);
+    } else {
+        return NULL;
+    }
 }
 
 Identifier::Identifier(yyltype loc, const char *n) : Node(loc) {
