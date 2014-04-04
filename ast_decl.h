@@ -63,6 +63,8 @@ class ClassDecl : public Decl
         const char *GetClassName() { return id->GetName(); }
 };
 
+/*** FnDecl **********************************************************/
+
 class FnDecl : public Decl
 {
     protected:
@@ -86,8 +88,6 @@ class FnDecl : public Decl
         void PrepareVarLocation();
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
-
-/*** FnDecl **********************************************************/
 
 inline FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n)
 {

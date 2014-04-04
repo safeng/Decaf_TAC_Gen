@@ -36,7 +36,6 @@ BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc)
 StringConstant::StringConstant(yyltype loc, const char *val)
     : Expr(loc)
 {
-    Assert(val != NULL);
     value = strdup(val);
 }
 
@@ -50,14 +49,12 @@ NullConstant::NullConstant(yyltype loc) : Expr(loc)
 
 Operator::Operator(yyltype loc, const char *tok) : Node(loc)
 {
-    Assert(tok != NULL);
     strncpy(tokenString, tok, sizeof(tokenString));
 }
 
 CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
     : Expr(Join(l->GetLocation(), r->GetLocation()))
 {
-    Assert(l != NULL && o != NULL && r != NULL);
     (op=o)->SetParent(this);
     (left=l)->SetParent(this);
     (right=r)->SetParent(this);
@@ -66,7 +63,6 @@ CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
 CompoundExpr::CompoundExpr(Operator *o, Expr *r)
     : Expr(Join(o->GetLocation(), r->GetLocation()))
 {
-    Assert(o != NULL && r != NULL);
     left = NULL;
     (op=o)->SetParent(this);
     (right=r)->SetParent(this);
@@ -75,20 +71,22 @@ CompoundExpr::CompoundExpr(Operator *o, Expr *r)
 void CompoundExpr::ReportErrorForIncompatibleOperands(Type *lhs,
                                                       Type *rhs)
 {
-    if (!lhs) { //unary op
+    if (lhs == NULL) {
         ReportError::IncompatibleOperand(op, rhs);
-    } else { // binary op
+    } else {
         ReportError::IncompatibleOperands(op, lhs, rhs);
     }
 }
 
 bool CompoundExpr::CanDoArithmetic(Type *lhs, Type *rhs)
 {
-    if (lhs && lhs != Type::errorType && rhs != Type::errorType)
+    if (lhs && lhs != Type::errorType && rhs != Type::errorType) {
         return rhs->IsNumeric() && rhs->IsEquivalentTo(lhs);
-    if (!lhs || lhs == Type::errorType)
+    } else if (!lhs || lhs == Type::errorType) {
         return rhs->IsNumeric() || rhs == Type::errorType;
-    return rhs != Type::errorType || lhs->IsNumeric();
+    } else {
+        return rhs != Type::errorType || lhs->IsNumeric();
+    }
 }
 
 /*** class arith_expr ************************************************/
@@ -106,21 +104,26 @@ ArithmeticExpr::ArithmeticExpr(Operator *op, Expr *rhs)
 Type *GetResultType(Type *lhs, Type *rhs)
 {
     Type *lesser = rhs;
-    if (lhs) lesser = lesser->LesserType(lhs);
-    if (!lesser || !lesser->IsNumeric())
+    if (lhs != NULL) {
+        lesser = lesser->LesserType(lhs);
+    }
+    if (lesser == NULL || !lesser->IsNumeric()) {
         return Type::errorType;
-    return lesser;
+    } else {
+        return lesser;
+    }
 }
 
 Type *ArithmeticExpr::CheckAndComputeResultType()
 {
-    Type *rType = right->CheckAndComputeResultType();
     Type *lType = NULL;
+    Type *rType = right->CheckAndComputeResultType();
     if (left != NULL) {
         lType = left->CheckAndComputeResultType();
     }
-    if (!CanDoArithmetic(lType, rType))
+    if (!CanDoArithmetic(lType, rType)) {
         ReportErrorForIncompatibleOperands(lType, rType);
+    }
     return GetResultType(lType, rType);
 }
 
@@ -184,8 +187,9 @@ Type* EqualityExpr::CheckAndComputeResultType()
 {
     Type *lhs = left->CheckAndComputeResultType();
     Type *rhs = right->CheckAndComputeResultType();
-    if (!lhs->IsCompatibleWith(rhs) && !rhs->IsCompatibleWith(lhs))
+    if (!lhs->IsCompatibleWith(rhs) && !rhs->IsCompatibleWith(lhs)) {
         ReportErrorForIncompatibleOperands(lhs, rhs);
+    }
     return Type::boolType;
 }
 
@@ -328,21 +332,26 @@ FieldAccess::FieldAccess(Expr *b, Identifier *f)
 
 Type* FieldAccess::CheckAndComputeResultType()
 {
-    Type *baseType = base ? base->CheckAndComputeResultType() : NULL;
+    Type *baseType;
+    if (base != NULL) {
+        baseType = base->CheckAndComputeResultType();
+    } else {
+        baseType = NULL;
+    }
     Decl *ivar = field->GetDeclRelativeToBase(baseType);
-    if (ivar && ivar->IsIvarDecl() && !base) { // add implicit "this"
+    if (ivar && ivar->IsIvarDecl() && !base) {
         base = new This(*field->GetLocation());
         base->SetParent(this);
         baseType = base->CheckAndComputeResultType();
     }
-    if (base) {
-        if (baseType == Type::errorType)
+    if (base != NULL) {
+        if (baseType == Type::errorType) {
             return Type::errorType;
-        else if (!ivar || !ivar->IsVarDecl()) {
+        } else if (ivar == NULL || !ivar->IsVarDecl()) {
             ReportError::FieldNotFoundInBase(field, baseType);
             return Type::errorType;
         } else {
-            ClassDecl *enclosingClass = FindSpecificParent<ClassDecl>(); // check cur scope for compatibility
+            ClassDecl *enclosingClass = FindSpecificParent<ClassDecl>();
             Type *withinClass = (enclosingClass? enclosingClass->GetDeclaredType() : NULL);
             if (ivar && (!withinClass|| !withinClass->IsCompatibleWith(baseType))) {
                 ReportError::InaccessibleField(field, baseType);
@@ -354,6 +363,17 @@ Type* FieldAccess::CheckAndComputeResultType()
         return Type::errorType;
     }
     return ivar ? (dynamic_cast<VarDecl *>(ivar))->GetDeclaredType() : Type::errorType;
+}
+
+Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    if (base != NULL) {
+        Location *base_loc = base->CodeGen(tac, nvar);
+        return NULL; // TODO: Add class support.
+    } else {
+        Decl *ivar = field->GetDeclRelativeToBase(NULL);
+        return FindLocation(ivar->GetName());
+    }
 }
 
 
@@ -408,6 +428,26 @@ Type* Call::CheckAndComputeResultType() {
     return fd->GetReturnType();
 }
 
+Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    if (base == NULL) {
+        FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(NULL));
+        for (int i = actuals->NumElements() - 1; i >= 0; i--) {
+            Location *arg_loc = actuals->Nth(i)->CodeGen(tac, nvar);
+            tac->GenPushParam(arg_loc);
+        }
+        bool is_void = fd->GetReturnType() == Type::voidType;
+        Location *res_loc = tac->GenLCall(nvar,
+                                          strcat(strndup("_", 1),
+                                                 fd->GetName()),
+                                          !is_void);
+        tac->GenPopParams(actuals->NumElements() *
+                          CodeGenerator::VarSize);
+        return res_loc;
+    }
+    return NULL; // TODO: Add support for classes and arrays.
+}
+
 
 NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
     Assert(c != NULL);
@@ -427,6 +467,7 @@ NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
     (size=sz)->SetParent(this);
     (elemType=et)->SetParent(this);
 }
+
 Type *NewArrayExpr::CheckAndComputeResultType() {
     Type *st = size->CheckAndComputeResultType();
     if (!st->IsCompatibleWith(Type::intType))
@@ -437,6 +478,3 @@ Type *NewArrayExpr::CheckAndComputeResultType() {
     yyltype none;
     return new ArrayType(none, elemType);
 }
-
-Type *ReadIntegerExpr::CheckAndComputeResultType() { return Type::intType; }
-Type *ReadLineExpr::CheckAndComputeResultType() { return Type::stringType; }

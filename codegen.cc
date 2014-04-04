@@ -23,12 +23,11 @@ Location *CodeGenerator::GenTempVar(int *nvar)
 {
     static int nextTempNum;
     char temp[10];
-    Location *result;
     sprintf(temp, "_tmp%d", nextTempNum++);
-    result = new Location(fpRelative,
-                          CodeGenerator::OffsetToFirstLocal
-                          + CodeGenerator::VarSize * *nvar,
-                          temp);
+    Location *result = new Location(fpRelative,
+                                    CodeGenerator::OffsetToFirstLocal
+                                    + CodeGenerator::VarSize * *nvar,
+                                    temp);
     (*nvar)++;
     Assert(result != NULL);
     return result;
@@ -199,3 +198,4 @@ void CodeGenerator::DoFinalCodeGen()
             code->Nth(i)->Emit(&mips);
     }
 }
+

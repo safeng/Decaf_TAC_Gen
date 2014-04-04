@@ -29,7 +29,11 @@ void VarDecl::Check() {
     type->Check();
     if (type->IsError()) type = Type::errorType;
 }
-bool VarDecl::IsIvarDecl() { return dynamic_cast<ClassDecl*>(parent) != NULL;}
+
+bool VarDecl::IsIvarDecl()
+{
+    return dynamic_cast<ClassDecl*>(parent) != NULL;
+}
 
 ClassDecl::ClassDecl(Identifier *n, NamedType *ex, List<Decl*> *m) : Decl(n) {
     // extends can be NULL, impl & mem may be empty lists but cannot be NULL

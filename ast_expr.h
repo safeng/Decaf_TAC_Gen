@@ -277,7 +277,9 @@ class FieldAccess : public LValue
 
     public:
         FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
+
         Type* CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 /* Like field access, call is used both for qualified base.field()
@@ -293,8 +295,9 @@ class Call : public Expr
 
     public:
         Call(yyltype loc, Expr *base, Identifier *field, List<Expr*> *args);
-        Decl *GetFnDecl();
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 class NewExpr : public Expr
@@ -318,6 +321,11 @@ class NewArrayExpr : public Expr
         Type* CheckAndComputeResultType();
 };
 
+/*** Read classes *****************************************************
+ *
+ *  Define ReadInteger expression node class read_int and ReadLine exp-
+ *  ression node class read_line.                                    */
+
 class ReadIntegerExpr : public Expr
 {
     public:
@@ -325,11 +333,21 @@ class ReadIntegerExpr : public Expr
         Type *CheckAndComputeResultType();
 };
 
+inline Type *ReadIntegerExpr::CheckAndComputeResultType()
+{
+    return Type::intType;
+}
+
 class ReadLineExpr : public Expr
 {
     public:
         ReadLineExpr(yyltype loc) : Expr (loc) {}
         Type *CheckAndComputeResultType();
 };
+
+inline Type *ReadLineExpr::CheckAndComputeResultType()
+{
+    return Type::stringType;
+}
 
 #endif
