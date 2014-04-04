@@ -34,7 +34,7 @@ Location *CodeGenerator::GenTempVar(int *nvar)
     sprintf(temp, "_tmp%d", nextTempNum++);
     Location *result = new Location(fpRelative,
                                     CodeGenerator::OffsetToFirstLocal
-                                    + CodeGenerator::VarSize * *nvar,
+                                    - CodeGenerator::VarSize * *nvar,
                                     temp);
     (*nvar)++;
     Assert(result != NULL);
