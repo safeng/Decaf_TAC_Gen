@@ -39,7 +39,7 @@ class StmtBlock : public Stmt
     public:
         StmtBlock(List<VarDecl*> *variableDeclarations, List<Stmt*> *statements);
         void Check();
-        void PrepareVarLocation();
+        void PrepareVarLocation(int *var_num);
         Location * CodeGen(CodeGenerator *tac, int *var_num);
 };
 

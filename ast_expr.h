@@ -262,6 +262,7 @@ class ArrayAccess : public LValue
     public:
         ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 /* Note that field access is used both for qualified names

@@ -66,19 +66,21 @@ void StmtBlock::Check() {
     stmts->CheckAll();
 }
 
-void StmtBlock::PrepareVarLocation(){
+void StmtBlock::PrepareVarLocation(int *var_num){
     varLocation = new Hashtable<Location*>();
     // Place all local variables into varLocation table
-    for(int i = 0; i < decls->NumElements(); ++i){
+    for(int i = 0; i < decls->NumElements(); ++i){  
        const char *vname = decls->Nth(i)->GetName();
        Location * loc = new Location(fpRelative, 
-               CodeGenerator::OffsetToFirstLocal * i, vname);
+               CodeGenerator::OffsetToFirstLocal +
+               CodeGenerator::VarSize*(*var_num), vname);
        varLocation->Enter(vname, loc);
+       (*var_num)++;
     }
 }
 
 Location * StmtBlock::CodeGen(CodeGenerator *tac, int *var_num){
-    PrepareVarLocation();
+    PrepareVarLocation(var_num);
     for(int i = 0; i < stmts->NumElements(); ++i){
         stmts->Nth(i)->CodeGen(tac, var_num);
     }
@@ -110,32 +112,32 @@ void ForStmt::Check() {
 }
 
 Location *ForStmt::CodeGen(CodeGenerator *tac, int *var_num){
-    Location * tmp_i = init->CodeGen(tac, var_num); // initialization
     char * test_label = tac->NewLabel();
+    char * end_label = tac->NewLabel();
+    this->end_label = end_label;
+    Location * tmp_i = init->CodeGen(tac, var_num); // initialization
     tac->GenLabel(test_label);
     Location * tmp_test = test->CodeGen(tac, var_num);
-    char * end_label = tac->NewLabel();
     tac->GenIfZ(tmp_test, end_label);
     body->CodeGen(tac, var_num);
     step->CodeGen(tac, var_num);
     tac->GenGoto(test_label);
     tac->GenLabel(end_label);
 
-    this->end_label = end_label;
     return NULL;
 }
 
 Location *WhileStmt::CodeGen(CodeGenerator *tac, int *var_num){
     char * entry_label = tac->NewLabel();
+    char * end_label = tac->NewLabel();
+    this->end_label = end_label;
     tac->GenLabel(entry_label);
     Location * tmp_test = test->CodeGen(tac, var_num);
-    char * end_label = tac->NewLabel();
     tac->GenIfZ(tmp_test, end_label);
     body->CodeGen(tac, var_num);
     tac->GenGoto(entry_label);
     tac->GenLabel(end_label);
 
-    this->end_label = end_label;
     return NULL;
 }
 

@@ -131,7 +131,7 @@ Location* ArithmeticExpr::CodeGen(CodeGenerator *tac, int *nvar)
 {
     Location *right_loc = right->CodeGen(tac, nvar);
     Location *left_loc = NULL;
-    if (left == NULL) {
+    if (left == NULL) { // 0-x => -x
         left_loc = tac->GenLoadConstant(nvar, 0);
     } else {
         left_loc = left->CodeGen(tac, nvar);
@@ -326,6 +326,10 @@ Type *ArrayAccess::CheckAndComputeResultType()
     }
 }
 
+Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar){
+    Location *tmp_sub = subscript->CodeGen(tac, nvar); 
+}
+
 FieldAccess::FieldAccess(Expr *b, Identifier *f)
     : LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation())
 {
@@ -382,7 +386,6 @@ Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
     }
 }
 
-
 Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
     Assert(f != NULL && a != NULL); // b can be be NULL (just means no explicit base)
     base = b;
@@ -390,6 +393,7 @@ Call::Call(yyltype loc, Expr *b, Identifier *f, List<Expr*> *a) : Expr(loc)  {
     (field=f)->SetParent(this);
     (actuals=a)->SetParentAll(this);
 }
+
 // special-case code for length() on arrays... sigh.
 Type* Call::CheckAndComputeResultType() {
     Type *baseType = base ? base->CheckAndComputeResultType() : NULL;

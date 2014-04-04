@@ -36,8 +36,8 @@ class Node
         typedef enum { kShallow, kDeep } lookup;
         virtual Decl *FindDecl(Identifier *id, lookup l = kDeep);
         virtual Scope *PrepareScope() { return NULL; }
-        virtual void PrepareVarLocation() {}
         virtual Location* CodeGen(CodeGenerator *tca, int *var_num);
+        virtual void PrepareVarLocation(int *nvar) {}
         Location* FindLocation(const char* query, lookup l = kDeep);
         template <class Specific> Specific *FindSpecificParent() {
             Node *p = parent;
