@@ -19,6 +19,14 @@ char *CodeGenerator::NewLabel()
     return strdup(temp);
 }
 
+char *CodeGenerator::NewFuncLabel()
+{
+    static int nextFuncNum = 0;
+    char temp[10];
+    sprintf(temp, "_F%d", nextFuncNum++);
+    return strdup(temp);
+}
+
 Location *CodeGenerator::GenTempVar(int *nvar)
 {
     static int nextTempNum;

@@ -71,15 +71,18 @@ class FnDecl : public Decl
         List<VarDecl*> *formals;
         Type *returnType;
         Stmt *body;
+        char *label;
 
     public:
         FnDecl(Identifier *name, Type *returnType, List<VarDecl*> *formals);
 
         bool IsFnDecl();
         bool IsMethodDecl();
+        bool IsMain();
         void SetFunctionBody(Stmt *b);
         Type *GetReturnType();
         List<VarDecl*> *GetFormals();
+        const char *GetLabel();
 
         void Check();
         void CheckPrototype();
@@ -88,14 +91,6 @@ class FnDecl : public Decl
         void PrepareVarLocation();
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
-
-inline FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n)
-{
-    Assert(n != NULL && r!= NULL && d != NULL);
-    (returnType=r)->SetParent(this);
-    (formals=d)->SetParentAll(this);
-    body = NULL;
-}
 
 inline bool FnDecl::IsFnDecl()
 {
@@ -107,9 +102,9 @@ inline bool FnDecl::IsMethodDecl()
     return dynamic_cast<ClassDecl*>(parent) != NULL;
 }
 
-inline void FnDecl::SetFunctionBody(Stmt *b)
+inline bool FnDecl::IsMain()
 {
-    (body=b)->SetParent(this);
+    return !IsMethodDecl() && strcmp(GetName(), "main") == 0;
 }
 
 inline Type *FnDecl::GetReturnType()
@@ -120,6 +115,11 @@ inline Type *FnDecl::GetReturnType()
 inline List<VarDecl*> *FnDecl::GetFormals()
 {
     return formals;
+}
+
+inline const char *FnDecl::GetLabel()
+{
+    return label;
 }
 
 #endif

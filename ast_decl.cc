@@ -8,6 +8,8 @@
 #include "codegen.h"
 #include "tac.h"
 
+#include <cstring>
+
 Decl::Decl(Identifier *n) : Node(*n->GetLocation()) {
     Assert(n != NULL);
     (id=n)->SetParent(this);
@@ -79,6 +81,25 @@ bool ClassDecl::IsCompatibleWith(Type *other) {
 
 /*** FnDecl **********************************************************/
 
+FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n)
+{
+    Assert(n != NULL && r!= NULL && d != NULL);
+    (returnType=r)->SetParent(this);
+    (formals=d)->SetParentAll(this);
+    body = NULL;
+    label = NULL;
+}
+
+void FnDecl::SetFunctionBody(Stmt *b)
+{
+    (body=b)->SetParent(this);
+    if (IsMain()) {
+        label = strdup("main");
+    } else {
+        label = CodeGenerator::NewFuncLabel();
+    }
+}
+
 void FnDecl::Check()
 {
     Assert(parent != NULL);
@@ -145,13 +166,12 @@ void FnDecl::PrepareVarLocation()
 
 Location *FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
 {
-    BeginFunc *begin_func;
     int sub_var_num = 0;
     PrepareVarLocation();
-    tac->GenLabel(strcat(strndup("_", 1), id->GetName()));
-    begin_func = tac->GenBeginFunc();
-    //body->CodeGen(tac, &sub_var_num);
+    tac->GenLabel(label);
+    BeginFunc *begin_func = tac->GenBeginFunc();
+    body->CodeGen(tac, &sub_var_num);
     tac->GenEndFunc();
-    begin_func->SetFrameSize(sub_var_num);
+    begin_func->SetFrameSize(sub_var_num * CodeGenerator::VarSize);
     return NULL;
 }
