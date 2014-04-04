@@ -261,6 +261,7 @@ class ArrayAccess : public LValue
 
     public:
         ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
+
         Type *CheckAndComputeResultType();
         Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
@@ -319,7 +320,9 @@ class NewArrayExpr : public Expr
 
     public:
         NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
+
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 /*** Read classes *****************************************************

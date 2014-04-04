@@ -327,7 +327,37 @@ Type *ArrayAccess::CheckAndComputeResultType()
 }
 
 Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar){
-    Location *tmp_sub = subscript->CodeGen(tac, nvar); 
+    Location *tmp_sub = subscript->CodeGen(tac, nvar);
+    Location *tmp_base = base->CodeGen(tac, nvar);
+    Location *tmp_array_len = tac->GenLoad(nvar, tmp_base); // load length value
+    // subscript test
+    Location *tmp_0 = tac->GenLoadConstant(nvar, 0);
+    Location *neg_loc = tac->GenBinaryOp(nvar, "<", tmp_sub,
+                                                    tmp_0);
+    Location * tmp_ge_zero = tac->GenBinaryOp(nvar, "==", neg_loc, tmp_0);
+    Location * tmp_lt_len = tac->GenBinaryOp(nvar, "<", tmp_sub, tmp_array_len);
+    Location * tmp_valid_sub = tac->GenBinaryOp(nvar, "&&", tmp_ge_zero,
+                                                            tmp_lt_len);
+    char * err_label = tac->NewLabel(); // runtime error label
+    tac->GenIfZ(tmp_valid_sub, err_label); // report runtime error
+    // array access (sub+1)*4
+    char * end_label = tac->NewLabel();
+    Location * tmp_var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
+    Location * tmp_offset = tac->GenBinaryOp(nvar, "*", tmp_sub, tmp_var_size);
+    Location * tmp_loc_= tac->GenBinaryOp(nvar, "+", tmp_offset, tmp_base);
+    // add length offset
+    Location * tmp_loc = tac->GenBinaryOp(nvar, "+", tmp_loc_, tmp_var_size);
+    Location * result = tac->GenLoad(nvar, tmp_loc);
+    tac->GenGoto(end_label);
+
+    // report runtime error
+    tac->GenLabel(err_label);
+    Location * tmp_err_msg = tac->GenLoadConstant(nvar, err_arr_out_of_bounds);
+    tac->GenBuiltInCall(nvar, PrintString, tmp_err_msg);
+    tac->GenBuiltInCall(nvar, Halt);
+
+    tac->GenLabel(end_label);
+    return result;
 }
 
 FieldAccess::FieldAccess(Expr *b, Identifier *f)
@@ -487,6 +517,33 @@ Type *NewArrayExpr::CheckAndComputeResultType()
         return Type::errorType;
     yyltype none;
     return new ArrayType(none, elemType);
+}
+
+Location *NewArrayExpr::CodeGen(CodeGenerator *tac, int *nvar){
+    Location *tmp_size = size->CodeGen(tac, nvar);
+    // check size
+    Location *tmp_0 = tac->GenLoadConstant(nvar, 0);
+    Location *tmp_valid_size = tac->GenBinaryOp(nvar, "<", tmp_0, tmp_size);
+    char * err_label = tac->NewLabel();
+    tac->GenIfZ(tmp_valid_size, err_label);
+    // create array
+    Location * tmp_var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
+    Location * tmp_size_data = tac->GenBinaryOp(nvar, "*", tmp_size, tmp_var_size);
+    Location * tmp_size_total = tac->GenBinaryOp(nvar, "+", tmp_size_data,
+            tmp_var_size);
+    Location * result = tac->GenBuiltInCall(nvar, Alloc, tmp_size_total);
+    // set length in the first filed
+    tac->GenStore(result, tmp_size);
+    char * end_label = tac->NewLabel();
+    tac->GenGoto(end_label);
+
+    // report runtime error
+    tac->GenLabel(err_label);
+    Location * err_msg = tac->GenLoadConstant(nvar, err_arr_bad_size);
+    tac->GenBuiltInCall(nvar, PrintString, err_msg);
+    tac->GenBuiltInCall(nvar, Halt);
+    tac->GenLabel(end_label);
+    return result;
 }
 
 /*** Read classes *****************************************************
