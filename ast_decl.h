@@ -5,11 +5,13 @@
 
 #include "ast.h"
 #include "ast_type.h"
+#include "ast_stmt.h"
 #include "list.h"
 
 class Identifier;
 class Stmt;
 class FnDecl;
+class CodeGenerator;
 
 class Decl : public Node
 {
@@ -61,24 +63,63 @@ class ClassDecl : public Decl
         const char *GetClassName() { return id->GetName(); }
 };
 
+/*** FnDecl **********************************************************/
+
 class FnDecl : public Decl
 {
     protected:
         List<VarDecl*> *formals;
         Type *returnType;
         Stmt *body;
+        char *label;
 
     public:
         FnDecl(Identifier *name, Type *returnType, List<VarDecl*> *formals);
+
+        bool IsFnDecl();
+        bool IsMethodDecl();
+        bool IsMain();
         void SetFunctionBody(Stmt *b);
+        Type *GetReturnType();
+        List<VarDecl*> *GetFormals();
+        const char *GetLabel();
+
         void Check();
         void CheckPrototype();
-        bool IsFnDecl() { return true; }
-        bool IsMethodDecl();
         bool ConflictsWithPrevious(Decl *prev);
         bool MatchesPrototype(FnDecl *other);
-        Type *GetReturnType() {return returnType; }
-        List<VarDecl*> *GetFormals() { return formals; }
+        void PrepareVarLocation();
+        Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
+
+inline bool FnDecl::IsFnDecl()
+{
+    return true;
+}
+
+inline bool FnDecl::IsMethodDecl()
+{
+    return dynamic_cast<ClassDecl*>(parent) != NULL;
+}
+
+inline bool FnDecl::IsMain()
+{
+    return !IsMethodDecl() && strcmp(GetName(), "main") == 0;
+}
+
+inline Type *FnDecl::GetReturnType()
+{
+    return returnType;
+}
+
+inline List<VarDecl*> *FnDecl::GetFormals()
+{
+    return formals;
+}
+
+inline const char *FnDecl::GetLabel()
+{
+    return label;
+}
 
 #endif

@@ -12,12 +12,14 @@ Node::Node(yyltype loc) {
     location = new yyltype(loc);
     parent = NULL;
     nodeScope = NULL;
+    varLocation = NULL;
 }
 
 Node::Node() {
     location = NULL;
     parent = NULL;
     nodeScope = NULL;
+    varLocation = NULL;
 }
 
 Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
@@ -30,11 +32,22 @@ Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
     return NULL;
 }
 
+Location *Node::FindLocation(const char *query, lookup l)
+{
+    Location *loc;
+    if (varLocation != NULL && (loc = varLocation->Lookup(query))) {
+        return loc;
+    } else if (l == kDeep && parent != NULL) {
+        return parent->FindLocation(query, l);
+    } else {
+        return NULL;
+    }
+}
+
 Identifier::Identifier(yyltype loc, const char *n) : Node(loc) {
     name = strdup(n);
     cached = NULL;
 }
-
 
 Decl *Identifier::GetDeclRelativeToBase(Type *baseType)
 {
@@ -49,4 +62,10 @@ Decl *Identifier::GetDeclRelativeToBase(Type *baseType)
         }
     }
     return cached;
+}
+
+/*** class errornode *************************************************/
+
+Error::Error() : Node()
+{
 }

@@ -5,7 +5,10 @@
 #include "ast_stmt.h"
 #include "scope.h"
 #include "errors.h"
+#include "codegen.h"
+#include "tac.h"
 
+#include <cstring>
 
 Decl::Decl(Identifier *n) : Node(*n->GetLocation()) {
     Assert(n != NULL);
@@ -28,7 +31,11 @@ void VarDecl::Check() {
     type->Check();
     if (type->IsError()) type = Type::errorType;
 }
-bool VarDecl::IsIvarDecl() { return dynamic_cast<ClassDecl*>(parent) != NULL;}
+
+bool VarDecl::IsIvarDecl()
+{
+    return dynamic_cast<ClassDecl*>(parent) != NULL;
+}
 
 ClassDecl::ClassDecl(Identifier *n, NamedType *ex, List<Decl*> *m) : Decl(n) {
     // extends can be NULL, impl & mem may be empty lists but cannot be NULL
@@ -72,18 +79,29 @@ bool ClassDecl::IsCompatibleWith(Type *other) {
     return (extends && extends->IsCompatibleWith(other));
 }
 
-FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n) {
+/*** FnDecl **********************************************************/
+
+FnDecl::FnDecl(Identifier *n, Type *r, List<VarDecl*> *d) : Decl(n)
+{
     Assert(n != NULL && r!= NULL && d != NULL);
     (returnType=r)->SetParent(this);
     (formals=d)->SetParentAll(this);
     body = NULL;
+    label = NULL;
 }
 
-void FnDecl::SetFunctionBody(Stmt *b) {
+void FnDecl::SetFunctionBody(Stmt *b)
+{
     (body=b)->SetParent(this);
+    if (IsMain()) {
+        label = strdup("main");
+    } else {
+        label = CodeGenerator::NewFuncLabel();
+    }
 }
 
-void FnDecl::Check() {
+void FnDecl::Check()
+{
     Assert(parent != NULL);
     nodeScope = new Scope();
     formals->DeclareAll(nodeScope);
@@ -92,33 +110,33 @@ void FnDecl::Check() {
         body->Check();
 }
 
-void FnDecl::CheckPrototype() {
+void FnDecl::CheckPrototype()
+{
     returnType->Check();
     if (returnType->IsError()) returnType = Type::errorType;
     formals->CheckAll();
 }
 
-bool FnDecl::ConflictsWithPrevious(Decl *prev) {
-    if (prev == NULL || prev == this)
+bool FnDecl::ConflictsWithPrevious(Decl *prev)
+{
+    if (prev == NULL || prev == this) {
         return false;
-    // special case error for method override
-    if (IsMethodDecl() && prev->IsMethodDecl() && parent != prev->GetParent()) {
+    } else if (IsMethodDecl() && prev->IsMethodDecl() &&
+        parent != prev->GetParent()) {
         if (!MatchesPrototype(dynamic_cast<FnDecl*>(prev))) {
             ReportError::OverrideMismatch(this);
             return true;
+        } else {
+            return false;
         }
-        return false;
+    } else {
+        ReportError::DeclConflict(this, prev);
+        return true;
     }
-    ReportError::DeclConflict(this, prev);
-    return true;
 }
 
-bool FnDecl::IsMethodDecl()
+bool FnDecl::MatchesPrototype(FnDecl *other)
 {
-    return dynamic_cast<ClassDecl*>(parent) != NULL;
-}
-
-bool FnDecl::MatchesPrototype(FnDecl *other) {
     CheckPrototype();
     other->CheckPrototype();
     if (returnType != Type::errorType && other->returnType != Type::errorType &&
@@ -134,5 +152,27 @@ bool FnDecl::MatchesPrototype(FnDecl *other) {
     return true;
 }
 
+void FnDecl::PrepareVarLocation()
+{
+    varLocation = new Hashtable<Location*>();
+    for (int i = 0; i < formals->NumElements(); i++) {
+        const char *vname = formals->Nth(i)->GetName();
+        Location *loc = new Location(fpRelative,
+                                     CodeGenerator::OffsetToFirstParam +
+                                     CodeGenerator::VarSize * i,
+                                     vname);
+        varLocation->Enter(vname, loc);
+    }
+}
 
-
+Location *FnDecl::CodeGen(CodeGenerator *tac, int *var_num)
+{
+    int sub_var_num = 0;
+    PrepareVarLocation();
+    tac->GenLabel(label);
+    BeginFunc *begin_func = tac->GenBeginFunc();
+    body->CodeGen(tac, &sub_var_num);
+    tac->GenEndFunc();
+    begin_func->SetFrameSize(sub_var_num * CodeGenerator::VarSize);
+    return NULL;
+}
