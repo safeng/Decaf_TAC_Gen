@@ -52,6 +52,7 @@ class ClassDecl : public Decl
         List<Decl*> *members;
         NamedType *extends;
         NamedType *cType;
+        Hashtable<int> *classLayout;
 
     public:
         ClassDecl(Identifier *name, NamedType *extends, List<Decl*> *members);
@@ -61,6 +62,9 @@ class ClassDecl : public Decl
         bool IsCompatibleWith(Type *type);
         Type *GetDeclaredType() { return cType; } //  used by "this"
         const char *GetClassName() { return id->GetName(); }
+        void PrepareClassLayout();
+        Location* CodeGen(CodeGenerator *tac, int *var_num);
+        Hashtable<int> * GetClassLayout() { return classLayout; }
 };
 
 /*** FnDecl **********************************************************/

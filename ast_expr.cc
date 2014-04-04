@@ -416,8 +416,7 @@ Type* FieldAccess::CheckAndComputeResultType()
 Location *FieldAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base != NULL) {
-        Location *base_loc = base->CodeGen(tac, nvar);
-        return NULL; // TODO: Add class support.
+        return NULL;
     } else {
         Decl *ivar = field->GetDeclRelativeToBase(NULL);
         return FindLocation(ivar->GetName());
@@ -507,14 +506,14 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
     }else{
         Type *baseType = base->CheckAndComputeResultType();
         if (baseType && baseType->IsArrayType()) {
-            Location *tmp_base = base->CodeGen(tac, nvar);
+            Location *tmp_base = base->CodeGen(tac, nvar); 
             Location *res_loc = tac->GenLoad(nvar, tmp_base);
             return res_loc;
-        } else {// TODO: Add support for classes
-
+        }else{
+            
         }
     }
-    return NULL;
+    return NULL; 
 }
 
 

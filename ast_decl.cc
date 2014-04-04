@@ -46,6 +46,7 @@ ClassDecl::ClassDecl(Identifier *n, NamedType *ex, List<Decl*> *m) : Decl(n) {
     cType = new NamedType(n);
     cType->SetParent(this);
     cType->SetDeclForType(this);
+    classLayout = NULL:
 }
 
 void ClassDecl::Check() {
@@ -73,6 +74,17 @@ Scope *ClassDecl::PrepareScope()
     return nodeScope;
 }
 
+void ClassDecl::PrepareClassLayout()
+{
+    if(classLayout) return classLayout;
+    classLayout = new Hashtable<int>(); 
+    if(extends) {
+        ClassDecl *ext = dynamic_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
+        ext->PrepareClassLayout();
+        
+    }
+
+}
 
 bool ClassDecl::IsCompatibleWith(Type *other) {
     if (cType->IsEquivalentTo(other)) return true;
