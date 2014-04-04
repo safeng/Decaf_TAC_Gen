@@ -17,7 +17,7 @@ then
             else
                 spim -file ${base}.test.s | tail -n +6 > ${base}.test.out &
                 PROC=$!
-                (sleep 0.02; kill $PROC) & 
+                (sleep 0.1; kill $PROC) &
                 fg $PROC
                 spim -file ${base}.s | tail -n +6 > ${base}.out
             fi
