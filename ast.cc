@@ -35,9 +35,6 @@ Decl *Node::FindDecl(Identifier *idToFind, lookup l) {
 Location *Node::FindLocation(const char *query, lookup l)
 {
     Location *loc;
-    if (varLocation != NULL) {
-        PrepareVarLocation(NULL);
-    }
     if (varLocation != NULL && (loc = varLocation->Lookup(query))) {
         return loc;
     } else if (l == kDeep && parent != NULL) {

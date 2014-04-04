@@ -158,7 +158,8 @@ void FnDecl::PrepareVarLocation()
     for (int i = 0; i < formals->NumElements(); i++) {
         const char *vname = formals->Nth(i)->GetName();
         Location *loc = new Location(fpRelative,
-                                     CodeGenerator::OffsetToFirstParam * i,
+                                     CodeGenerator::OffsetToFirstParam +
+                                     CodeGenerator::VarSize * i,
                                      vname);
         varLocation->Enter(vname, loc);
     }

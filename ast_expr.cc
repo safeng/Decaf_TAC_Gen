@@ -446,7 +446,7 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
             Location *arg_loc = actuals->Nth(i)->CodeGen(tac, nvar);
             tac->GenPushParam(arg_loc);
         }
-        bool is_void = fd->GetReturnType() == Type::voidType;
+        bool is_void = fd->GetReturnType()->IsEquivalentTo(Type::voidType);
         Location *res_loc = tac->GenLCall(nvar, fd->GetLabel(),
                                           !is_void);
         tac->GenPopParams(actuals->NumElements() *
