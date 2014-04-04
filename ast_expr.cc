@@ -460,13 +460,15 @@ Type* NewExpr::CheckAndComputeResultType() {
     return cType;
 }
 
-NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc) {
+NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc)
+{
     Assert(sz != NULL && et != NULL);
     (size=sz)->SetParent(this);
     (elemType=et)->SetParent(this);
 }
 
-Type *NewArrayExpr::CheckAndComputeResultType() {
+Type *NewArrayExpr::CheckAndComputeResultType()
+{
     Type *st = size->CheckAndComputeResultType();
     if (!st->IsCompatibleWith(Type::intType))
         ReportError::NewArraySizeNotInteger(size);
@@ -475,4 +477,19 @@ Type *NewArrayExpr::CheckAndComputeResultType() {
         return Type::errorType;
     yyltype none;
     return new ArrayType(none, elemType);
+}
+
+/*** Read classes *****************************************************
+ *
+ *  Define ReadInteger expression node class read_int and ReadLine exp-
+ *  ression node class read_line                                     */
+
+Location *ReadIntegerExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    return tac->GenBuiltInCall(nvar, ReadInteger);
+}
+
+Location *ReadLineExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    return tac->GenBuiltInCall(nvar, ReadLine);
 }
