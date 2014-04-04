@@ -45,7 +45,7 @@ NullConstant::NullConstant(yyltype loc) : Expr(loc)
 {
 }
 
-/*** class operat ****************************************************/
+/*** class opr *******************************************************/
 
 Operator::Operator(yyltype loc, const char *tok) : Node(loc)
 {
@@ -195,15 +195,21 @@ Type* EqualityExpr::CheckAndComputeResultType()
 
 Location* EqualityExpr::CodeGen(CodeGenerator *tac, int *nvar)
 {
+    Type *left_type = left->CheckAndComputeResultType();
     Location *left_loc = left->CodeGen(tac, nvar);
     Location *right_loc = right->CodeGen(tac, nvar);
-    if (op->str()[0] == '=') {
-        return tac->GenBinaryOp(nvar, "==", left_loc, right_loc);
+    Location *eqv_loc;
+    if (left_type->IsEquivalentTo(Type::stringType)) {
+        eqv_loc = tac->GenBuiltInCall(nvar, StringEqual, left_loc,
+                                      right_loc);
     } else {
-        Location *neg_loc = tac->GenBinaryOp(nvar, "==", left_loc,
-                                             right_loc);
+        eqv_loc = tac->GenBinaryOp(nvar, "==", left_loc, right_loc);
+    }
+    if (op->str()[0] == '=') {
+        return eqv_loc;
+    } else {
         Location *const0 = tac->GenLoadConstant(nvar, 0);
-        return tac->GenBinaryOp(nvar, "==", neg_loc, const0);
+        return tac->GenBinaryOp(nvar, "==", eqv_loc, const0);
     }
 }
 
