@@ -8,12 +8,18 @@ then
     for src in samples/*.decaf
     do
         base=${src%.decaf}
-        ./dcc < ${src} &> ${base}.test.s
-        if [ -e ${base}.in ];
+        if ./dcc < ${src} &> ${base}.test.s;
         then
-            cat ${base}.in | spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
+            if [ -e ${base}.in ];
+            then
+                cat ${base}.in | spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
+                cat ${base}.in | spim -file ${base}.s | tail -n +6 > ${base}.out
+            else
+                spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
+                spim -file ${base}.s | tail -n +6 > ${base}.out
+            fi
         else
-            spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
+            touch ${base}.test.out
         fi
         if diff -urw ${base}.test.out ${base}.out > /dev/null
         then
