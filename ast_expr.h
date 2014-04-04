@@ -320,6 +320,7 @@ class NewArrayExpr : public Expr
     public:
         NewArrayExpr(yyltype loc, Expr *sizeExpr, Type *elemType);
         Type *CheckAndComputeResultType();
+        Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 /*** Read classes *****************************************************
