@@ -472,10 +472,14 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base == NULL) {
         FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(NULL));
-        for (int i = actuals->NumElements() - 1; i >= 0; i--) {
-            Location *arg_loc = actuals->Nth(i)->CodeGen(tac, nvar);
-            tac->GenPushParam(arg_loc);
+        Location **arg_locs = new Location*[actuals->NumElements()];
+        for (int i = 0; i < actuals->NumElements(); i++) {
+            arg_locs[i] = actuals->Nth(i)->CodeGen(tac, nvar);
         }
+        for (int i = actuals->NumElements() - 1; i >= 0; i--) {
+            tac->GenPushParam(arg_locs[i]);
+        }
+        delete arg_locs;
         bool is_void = fd->GetReturnType()->IsEquivalentTo(Type::voidType);
         Location *res_loc = tac->GenLCall(nvar, fd->GetLabel(),
                                           !is_void);
