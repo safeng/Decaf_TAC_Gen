@@ -15,7 +15,10 @@ then
                 cat ${base}.in | spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
                 cat ${base}.in | spim -file ${base}.s | tail -n +6 > ${base}.out
             else
-                spim -file ${base}.test.s | tail -n +6 > ${base}.test.out
+                spim -file ${base}.test.s | tail -n +6 > ${base}.test.out &
+                PROC=$!
+                (sleep 0.02; kill $PROC) & 
+                fg $PROC
                 spim -file ${base}.s | tail -n +6 > ${base}.out
             fi
         else
