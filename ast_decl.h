@@ -67,9 +67,9 @@ class ClassDecl : public Decl
         bool IsCompatibleWith(Type *type);
         Type *GetDeclaredType() { return cType; } //  used by "this"
         const char *GetClassName() { return id->GetName(); }
-        Hashtable<int> *GetClassLayout() { return classLayout; }
+        Hashtable<int> *GetClassLayout() { Assert(classLayout); return classLayout; }
         List<FnDecl *> *GetFnLayout() { return fnLayout; }
-        List<const char *> *GetFnTable() { return fnTable; }
+        List<const char *> *GetFnTable() { Assert(fnTable); return fnTable; }
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
 

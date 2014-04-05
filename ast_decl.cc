@@ -131,8 +131,8 @@ void ClassDecl::PrepareFnLayout()
 
 Location *ClassDecl::CodeGen(CodeGenerator *tac, int *var_num)
 {
-    // Gen code for all member functions
     PrepareClassLayout();
+    // Gen code for all member functions
     for(int i = 0; i < members->NumElements(); ++i){
         if(members->Nth(i)->IsFnDecl()){
             members->Nth(i)->CodeGen(tac, var_num);
