@@ -72,7 +72,7 @@ void StmtBlock::PrepareVarLocation(int *var_num){
     for(int i = 0; i < decls->NumElements(); ++i){  
        const char *vname = decls->Nth(i)->GetName();
        Location * loc = new Location(fpRelative, 
-               CodeGenerator::OffsetToFirstLocal +
+               CodeGenerator::OffsetToFirstLocal -
                CodeGenerator::VarSize*(*var_num), vname);
        varLocation->Enter(vname, loc);
        (*var_num)++;
