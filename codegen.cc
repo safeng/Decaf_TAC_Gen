@@ -29,7 +29,7 @@ char *CodeGenerator::NewFuncLabel()
 
 Location *CodeGenerator::GenTempVar(int *nvar)
 {
-    static int nextTempNum;
+    static int nextTempNum = 0;
     char temp[10];
     sprintf(temp, "_tmp%d", nextTempNum++);
     Location *result = new Location(fpRelative,
@@ -37,10 +37,17 @@ Location *CodeGenerator::GenTempVar(int *nvar)
                                     - CodeGenerator::VarSize * *nvar,
                                     temp);
     (*nvar)++;
-    Assert(result != NULL);
     return result;
 }
 
+Location *CodeGenerator::GenGlobVar(const char *var_name)
+{
+    static int globNum = 0;
+    return new Location(gpRelative,
+                        CodeGenerator::OffsetToFirstGlobal
+                        + CodeGenerator::VarSize * globNum++,
+                        var_name);
+}
 
 Location *CodeGenerator::GenLoadConstant(int *nvar, int value)
 {

@@ -34,7 +34,7 @@ BoolConstant::BoolConstant(yyltype loc, bool val) : Expr(loc)
 /*** class str_const *************************************************/
 
 StringConstant::StringConstant(yyltype loc, const char *val)
-    : Expr(loc)
+: Expr(loc)
 {
     value = strdup(val);
 }
@@ -53,7 +53,7 @@ Operator::Operator(yyltype loc, const char *tok) : Node(loc)
 }
 
 CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
-    : Expr(Join(l->GetLocation(), r->GetLocation()))
+: Expr(Join(l->GetLocation(), r->GetLocation()))
 {
     (op=o)->SetParent(this);
     (left=l)->SetParent(this);
@@ -61,7 +61,7 @@ CompoundExpr::CompoundExpr(Expr *l, Operator *o, Expr *r)
 }
 
 CompoundExpr::CompoundExpr(Operator *o, Expr *r)
-    : Expr(Join(o->GetLocation(), r->GetLocation()))
+: Expr(Join(o->GetLocation(), r->GetLocation()))
 {
     left = NULL;
     (op=o)->SetParent(this);
@@ -92,12 +92,12 @@ bool CompoundExpr::CanDoArithmetic(Type *lhs, Type *rhs)
 /*** class arith_expr ************************************************/
 
 ArithmeticExpr::ArithmeticExpr(Expr *lhs, Operator *op, Expr *rhs)
-    : CompoundExpr(lhs,op,rhs)
+: CompoundExpr(lhs,op,rhs)
 {
 }
 
 ArithmeticExpr::ArithmeticExpr(Operator *op, Expr *rhs)
-    : CompoundExpr(op,rhs)
+: CompoundExpr(op,rhs)
 {
 }
 
@@ -142,7 +142,7 @@ Location* ArithmeticExpr::CodeGen(CodeGenerator *tac, int *nvar)
 /*** class rel_expr **************************************************/
 
 RelationalExpr::RelationalExpr(Expr *lhs, Operator *op, Expr *rhs)
-    : CompoundExpr(lhs,op,rhs)
+: CompoundExpr(lhs,op,rhs)
 {
 }
 
@@ -179,7 +179,7 @@ Location* RelationalExpr::CodeGen(CodeGenerator *tac, int *nvar)
 /*** class eq_expr ***************************************************/
 
 EqualityExpr::EqualityExpr(Expr *lhs, Operator *op, Expr *rhs)
-    : CompoundExpr(lhs, op, rhs)
+: CompoundExpr(lhs, op, rhs)
 {
 }
 
@@ -216,12 +216,12 @@ Location* EqualityExpr::CodeGen(CodeGenerator *tac, int *nvar)
 /*** class log_expr **************************************************/
 
 LogicalExpr::LogicalExpr(Expr *lhs, Operator *op, Expr *rhs)
-    : CompoundExpr(lhs,op,rhs)
+: CompoundExpr(lhs,op,rhs)
 {
 }
 
 LogicalExpr::LogicalExpr(Operator *op, Expr *rhs)
-    : CompoundExpr(op,rhs)
+: CompoundExpr(op,rhs)
 {
 }
 
@@ -253,7 +253,7 @@ Location* LogicalExpr::CodeGen(CodeGenerator *tac, int *nvar)
 /*** class assign_expr ***********************************************/
 
 AssignExpr::AssignExpr(Expr *lhs, Operator *op, Expr *rhs)
-    : CompoundExpr(lhs,op,rhs)
+: CompoundExpr(lhs,op,rhs)
 {
 }
 
@@ -270,9 +270,15 @@ Type *AssignExpr::CheckAndComputeResultType()
 
 Location* AssignExpr::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    Location *left_loc = left->CodeGen(tac, nvar);
+    LValue *left_val = static_cast<LValue*>(left);
+    Location *left_loc = left_val->LValueCodeGen(tac, nvar);
     Location *right_loc = right->CodeGen(tac, nvar);
-    tac->GenAssign(left_loc, right_loc);
+    if (left_val->is_field_acc() &&
+        static_cast<FieldAccess*>(left_val)->null_base()) {
+        tac->GenAssign(left_loc, right_loc);
+    } else {
+        tac->GenStore(left_loc, right_loc);
+    }
     return left_loc;
 }
 
@@ -326,14 +332,46 @@ Type *ArrayAccess::CheckAndComputeResultType()
     }
 }
 
-Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar){
-    Location *tmp_sub = subscript->CodeGen(tac, nvar); 
+Location *ArrayAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *base_val = base->CodeGen(tac, nvar);
+    Location *sub_val = subscript->CodeGen(tac, nvar);
+    Location *array_len = tac->GenLoad(nvar, base_val);
+    // Length test
+    Location *const0 = tac->GenLoadConstant(nvar, 0);
+    Location *neg_len = tac->GenBinaryOp(nvar, "<", sub_val, const0);
+    Location *valid_sub = tac->GenBinaryOp(nvar, "<", sub_val,
+                                           array_len);
+    Location *too_big_sub = tac->GenBinaryOp(nvar, "==", valid_sub,
+                                             const0);
+    Location *invalid_sub = tac->GenBinaryOp(nvar, "||", neg_len,
+                                             too_big_sub);
+
+    // Report error.
+    char *end_label = tac->NewLabel();
+    tac->GenIfZ(invalid_sub, end_label);
+    Location *err_msg = tac->GenLoadConstant(nvar, err_arr_out_of_bounds);
+    tac->GenBuiltInCall(nvar, PrintString, err_msg);
+    tac->GenBuiltInCall(nvar, Halt);
+
+    // Return value
+    tac->GenLabel(end_label);
+    Location *var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
+    Location *offset = tac->GenBinaryOp(nvar, "*", sub_val, var_size);
+    Location *loc = tac->GenBinaryOp(nvar, "+", base_val, offset);
+    loc = tac->GenBinaryOp(nvar, "+", loc, var_size);
+    return loc;
 }
 
-FieldAccess::FieldAccess(Expr *b, Identifier *f)
-    : LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation())
+Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    Assert(f != NULL); // b can be be NULL (just means no explicit base)
+    return tac->GenLoad(nvar, LValueCodeGen(tac, nvar));
+}
+
+FieldAccess::FieldAccess(Expr *b, Identifier *f) :
+    LValue(b ? Join(b->GetLocation(), f->GetLocation())
+           : *f->GetLocation())
+{
     base = b;
     if (base) base->SetParent(this);
     (field=f)->SetParent(this);
@@ -375,7 +413,7 @@ Type* FieldAccess::CheckAndComputeResultType()
     return ivar ? (dynamic_cast<VarDecl *>(ivar))->GetDeclaredType() : Type::errorType;
 }
 
-Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
+Location *FieldAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base != NULL) {
         Location *base_loc = base->CodeGen(tac, nvar);
@@ -383,6 +421,16 @@ Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
     } else {
         Decl *ivar = field->GetDeclRelativeToBase(NULL);
         return FindLocation(ivar->GetName());
+    }
+}
+
+Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    if (base != NULL) {
+        Location *base_loc = base->CodeGen(tac, nvar);
+        return NULL; // TODO: Add class support.
+    } else {
+        return LValueCodeGen(tac, nvar);
     }
 }
 
@@ -442,18 +490,31 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base == NULL) {
         FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(NULL));
-        for (int i = actuals->NumElements() - 1; i >= 0; i--) {
-            Location *arg_loc = actuals->Nth(i)->CodeGen(tac, nvar);
-            tac->GenPushParam(arg_loc);
+        Location **arg_locs = new Location*[actuals->NumElements()];
+        for (int i = 0; i < actuals->NumElements(); i++) {
+            arg_locs[i] = actuals->Nth(i)->CodeGen(tac, nvar);
         }
+        for (int i = actuals->NumElements() - 1; i >= 0; i--) {
+            tac->GenPushParam(arg_locs[i]);
+        }
+        delete[] arg_locs;
         bool is_void = fd->GetReturnType()->IsEquivalentTo(Type::voidType);
         Location *res_loc = tac->GenLCall(nvar, fd->GetLabel(),
                                           !is_void);
         tac->GenPopParams(actuals->NumElements() *
                           CodeGenerator::VarSize);
         return res_loc;
+    }else{
+        Type *baseType = base->CheckAndComputeResultType();
+        if (baseType && baseType->IsArrayType()) {
+            Location *tmp_base = base->CodeGen(tac, nvar);
+            Location *res_loc = tac->GenLoad(nvar, tmp_base);
+            return res_loc;
+        } else {// TODO: Add support for classes
+
+        }
     }
-    return NULL; // TODO: Add support for classes and arrays.
+    return NULL;
 }
 
 
@@ -487,6 +548,33 @@ Type *NewArrayExpr::CheckAndComputeResultType()
         return Type::errorType;
     yyltype none;
     return new ArrayType(none, elemType);
+}
+
+Location *NewArrayExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *size_val = size->CodeGen(tac, nvar);
+    // check size
+    Location *const1 = tac->GenLoadConstant(nvar, 1);
+    Location *invalid_size = tac->GenBinaryOp(nvar, "<", size_val,
+                                              const1);
+    char *end_label = tac->NewLabel();
+    tac->GenIfZ(invalid_size, end_label);
+
+    // report runtime error
+    Location *err_msg = tac->GenLoadConstant(nvar, err_arr_bad_size);
+    tac->GenBuiltInCall(nvar, PrintString, err_msg);
+    tac->GenBuiltInCall(nvar, Halt);
+    tac->GenLabel(end_label);
+
+    // create array
+    Location *var_size = tac->GenLoadConstant(nvar,
+                                              CodeGenerator::VarSize);
+    Location *size_total = tac->GenBinaryOp(nvar, "*", size_val,
+                                            var_size);
+    size_total = tac->GenBinaryOp(nvar, "+", size_total, var_size);
+    Location *result = tac->GenBuiltInCall(nvar, Alloc, size_total);
+    tac->GenStore(result, size_val);
+    return result;
 }
 
 /*** Read classes *****************************************************
