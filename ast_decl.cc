@@ -73,6 +73,24 @@ Scope *ClassDecl::PrepareScope()
     return nodeScope;
 }
 
+void ClassDecl::PrepareClassLayout()
+{
+    if(classLayout) return classLayout;
+    classLayout = new Hashtable<int>(); 
+    int offset = fieldOffset;
+    if(extends) {
+        ClassDecl *ext = dynamic_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
+        ext->PrepareClassLayout();
+        *classLayout = *ext->GetClassLayout();
+        offset += classLayout->NumEntries()*CodeGenerator::VarSize;
+    }
+    for(int i = 0; members->NumElements(); ++i){
+        if(members->Nth(i)->IsVarDecl()){
+           classLayout->Enter(members->Nth(i)->GetName(), offset);
+           offset += CodeGenerator::VarSize;
+        }
+    }
+}
 
 bool ClassDecl::IsCompatibleWith(Type *other) {
     if (cType->IsEquivalentTo(other)) return true;

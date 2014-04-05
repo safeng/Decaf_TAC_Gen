@@ -52,6 +52,8 @@ class ClassDecl : public Decl
         List<Decl*> *members;
         NamedType *extends;
         NamedType *cType;
+        Hashtable<int> *classLayout;
+        static const int fieldOffset = 4;
 
     public:
         ClassDecl(Identifier *name, NamedType *extends, List<Decl*> *members);
