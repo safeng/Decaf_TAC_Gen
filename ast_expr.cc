@@ -521,7 +521,7 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
             return res_loc;
         } else {
             FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(baseType));
-            ClassDecl *cd = NULL;
+            ClassDecl *cd = fd->GetClass();
             Location **arg_locs = new Location*[actuals->NumElements()];
             for (int i = 0; i < actuals->NumElements(); i++) {
                 arg_locs[i] = actuals->Nth(i)->CodeGen(tac, nvar);

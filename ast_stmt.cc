@@ -36,12 +36,7 @@ void Program::Emit() {
 Location *Program::CodeGen(CodeGenerator *tac, int *var_num)
 { 
     varLocation = new Hashtable<Location*>();
-    for(int i = 0; i < decls->NumElements(); ++i) {
-        Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
-        if (d->IsClassDecl()) {
-            d->CodeGen(tac, NULL);
-        }
-    }
+    // global variable
     for (int i = 0; i < decls->NumElements(); i++) {
         Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
         if (d->IsVarDecl()) {
@@ -49,6 +44,14 @@ Location *Program::CodeGen(CodeGenerator *tac, int *var_num)
             varLocation->Enter(vname, tac->GenGlobVar(vname));
         }
     }
+    // class
+    for(int i = 0; i < decls->NumElements(); ++i) {
+        Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
+        if (d->IsClassDecl()) {
+            d->CodeGen(tac, NULL);
+        }
+    }
+    // global function
     for (int i = 0; i < decls->NumElements(); i++) {
         Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
         if (d->IsFnDecl()) {

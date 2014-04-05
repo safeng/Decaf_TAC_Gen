@@ -78,7 +78,7 @@ Scope *ClassDecl::PrepareScope()
 
 int ClassDecl::GetFnDeclIdx(FnDecl *fn_decl)
 {
-    Assert(fnLayout && fnTable);
+    PrepareFnLayout();
     for(int i = 0; i < fnLayout->NumElements(); ++i)
     {
         if(strcmp(fnLayout->Nth(i)->GetName(), fn_decl->GetName()) == 0)

@@ -67,10 +67,10 @@ class ClassDecl : public Decl
         bool IsCompatibleWith(Type *type);
         Type *GetDeclaredType() { return cType; } //  used by "this"
         const char *GetClassName() { return id->GetName(); }
-        Hashtable<int> *GetClassLayout() { return classLayout; }
-        List<FnDecl *> *GetFnLayout() { return fnLayout; }
+        Hashtable<int> *GetClassLayout() { PrepareClassLayout(); return classLayout; }
+        List<FnDecl *> *GetFnLayout() { PrepareFnLayout(); return fnLayout; }
         int GetFnDeclIdx(FnDecl *fn_decl);
-        List<const char *> *GetFnTable() { return fnTable; }
+        List<const char *> *GetFnTable() { PrepareFnLayout(); return fnTable; }
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
 
@@ -89,6 +89,7 @@ class FnDecl : public Decl
 
         bool IsFnDecl();
         bool IsMethodDecl();
+        ClassDecl *GetClass();
         bool IsMain();
         void SetFunctionBody(Stmt *b);
         Type *GetReturnType();
@@ -111,6 +112,11 @@ inline bool FnDecl::IsFnDecl()
 inline bool FnDecl::IsMethodDecl()
 {
     return dynamic_cast<ClassDecl*>(parent) != NULL;
+}
+
+inline ClassDecl *FnDecl::GetClass()
+{
+   return dynamic_cast<ClassDecl*>(parent); 
 }
 
 inline bool FnDecl::IsMain()
