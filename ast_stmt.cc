@@ -27,26 +27,26 @@ void Program::Emit() {
     if (!main_found) {
         ReportError::NoMainFound();
     } else {
-        CodeGenerator *tca = new CodeGenerator();
-        CodeGen(tca, NULL);
-        tca->DoFinalCodeGen();
+        CodeGenerator *tac = new CodeGenerator();
+        CodeGen(tac, NULL);
+        tac->DoFinalCodeGen();
     }
 }
 
-Location *Program::CodeGen(CodeGenerator *tca, int *var_num)
+Location *Program::CodeGen(CodeGenerator *tac, int *var_num)
 {
-    /*
+    varLocation = new Hashtable<Location*>();
     for (int i = 0; i < decls->NumElements(); i++) {
         Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
         if (d->IsVarDecl()) {
-            d->CodeGen(tca, NULL);
+            const char *vname = d->GetName();
+            varLocation->Enter(vname, tac->GenGlobVar(vname));
         }
     }
-    */
     for (int i = 0; i < decls->NumElements(); i++) {
         Decl *d = decls->Nth(i)->GetId()->GetDeclRelativeToBase();
         if (d->IsFnDecl()) {
-            d->CodeGen(tca, NULL);
+            d->CodeGen(tac, NULL);
         }
     }
 
@@ -69,13 +69,13 @@ void StmtBlock::Check() {
 void StmtBlock::PrepareVarLocation(int *var_num){
     varLocation = new Hashtable<Location*>();
     // Place all local variables into varLocation table
-    for(int i = 0; i < decls->NumElements(); ++i){  
-       const char *vname = decls->Nth(i)->GetName();
-       Location * loc = new Location(fpRelative, 
-               CodeGenerator::OffsetToFirstLocal -
-               CodeGenerator::VarSize*(*var_num), vname);
-       varLocation->Enter(vname, loc);
-       (*var_num)++;
+    for(int i = 0; i < decls->NumElements(); ++i){
+        const char *vname = decls->Nth(i)->GetName();
+        Location * loc = new Location(fpRelative,
+                                      CodeGenerator::OffsetToFirstLocal -
+                                      CodeGenerator::VarSize*(*var_num), vname);
+        varLocation->Enter(vname, loc);
+        (*var_num)++;
     }
 }
 
@@ -153,21 +153,21 @@ void IfStmt::Check() {
 }
 
 Location *IfStmt::CodeGen(CodeGenerator *tac, int *var_num){
-     Location * tmp_test = test->CodeGen(tac, var_num); // temp var for testing
-     char * else_label = tac->NewLabel();
-     tac->GenIfZ(tmp_test, else_label); // Go to else
-     body->CodeGen(tac, var_num); // if body
-     char * end_label = NULL;
-     if(elseBody != NULL){
-         end_label = tac->NewLabel();
-         tac->GenGoto(end_label);
-     }
-     tac->GenLabel(else_label); // else label
-     if(elseBody != NULL){
-         elseBody->CodeGen(tac, var_num);
-         tac->GenLabel(end_label);
-     } 
-     return NULL;
+    Location * tmp_test = test->CodeGen(tac, var_num); // temp var for testing
+    char * else_label = tac->NewLabel();
+    tac->GenIfZ(tmp_test, else_label); // Go to else
+    body->CodeGen(tac, var_num); // if body
+    char * end_label = NULL;
+    if(elseBody != NULL){
+        end_label = tac->NewLabel();
+        tac->GenGoto(end_label);
+    }
+    tac->GenLabel(else_label); // else label
+    if(elseBody != NULL){
+        elseBody->CodeGen(tac, var_num);
+        tac->GenLabel(end_label);
+    }
+    return NULL;
 }
 
 
@@ -191,7 +191,7 @@ ReturnStmt::ReturnStmt(yyltype loc, Expr *e) : Stmt(loc) {
 
 Location *ReturnStmt::CodeGen(CodeGenerator *tac, int *var_num){
     Location *tmp_return = expr->CodeGen(tac, var_num);
-    tac->GenReturn(tmp_return);    
+    tac->GenReturn(tmp_return);
     return NULL;
 }
 
