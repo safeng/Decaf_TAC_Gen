@@ -76,6 +76,17 @@ Scope *ClassDecl::PrepareScope()
     return nodeScope;
 }
 
+int ClassDecl::GetFnDeclIdx(FnDecl *fn_decl)
+{
+    Assert(fnLayout && fnTable);
+    for(int i = 0; i < fnLayout->NumElements(); ++i)
+    {
+        if(strcmp(fnLayout->Nth(i)->GetName(), fn_decl->GetName()) == 0)
+            return i;
+    }
+    return -1;
+}
+
 void ClassDecl::PrepareClassLayout()
 {
     if(classLayout) return;
@@ -101,7 +112,7 @@ void ClassDecl::PrepareFnLayout()
     if(fnLayout) return;
     fnLayout = new List<FnDecl *>();
     fnTable = new List<const char *>();
-    if(extends){
+    if(extends) {
         ClassDecl *ext = static_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
         ext->PrepareFnLayout();
         *fnLayout = *ext->GetFnLayout();
@@ -113,7 +124,7 @@ void ClassDecl::PrepareFnLayout()
             FnDecl * fn_decl = static_cast<FnDecl* >(members->Nth(i));
             const char *fn_label = fn_decl->GetLabel();
             int idx = -1;
-            for(int j = 0; j<fnLayout_size; ++j){
+            for(int j = 0; j<fnLayout_size; ++j) {
                 if(strcmp(fn_decl->GetName(), fnLayout->Nth(j)->GetName()) == 0){
                     idx = j;
                     break;

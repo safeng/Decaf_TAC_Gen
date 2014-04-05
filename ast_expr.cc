@@ -521,6 +521,7 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
             return res_loc;
         } else {
             FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(baseType));
+            ClassDecl *cd = NULL;
             Location **arg_locs = new Location*[actuals->NumElements()];
             for (int i = 0; i < actuals->NumElements(); i++) {
                 arg_locs[i] = actuals->Nth(i)->CodeGen(tac, nvar);
@@ -530,8 +531,12 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
             }
             delete[] arg_locs;
             tac->GenPushParam(base_loc);
+            // Get calling address from vtable
             bool is_void = fd->GetReturnType()->IsEquivalentTo(Type::voidType);
-            Location *res_loc = tac->GenLCall(nvar, fd->GetLabel(),
+            Location *vt = tac->GenLoad(nvar, base_loc);
+            int offset = cd->GetFnDeclIdx(fd);
+            Location *call_addr = tac->GenLoad(nvar, vt, offset*CodeGenerator::VarSize);
+            Location *res_loc = tac->GenACall(nvar, call_addr,
                                               !is_void);
             tac->GenPopParams((actuals->NumElements() + 1) *
                               CodeGenerator::VarSize);

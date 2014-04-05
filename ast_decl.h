@@ -69,6 +69,7 @@ class ClassDecl : public Decl
         const char *GetClassName() { return id->GetName(); }
         Hashtable<int> *GetClassLayout() { Assert(classLayout); return classLayout; }
         List<FnDecl *> *GetFnLayout() { return fnLayout; }
+        int GetFnDeclIdx(FnDecl *fn_decl);
         List<const char *> *GetFnTable() { Assert(fnTable); return fnTable; }
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
