@@ -515,11 +515,27 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
         return res_loc;
     }else{
         Type *baseType = base->CheckAndComputeResultType();
+        Location *base_loc = base->CodeGen(tac, nvar);
         if (baseType && baseType->IsArrayType()) {
-            Location *tmp_base = base->CodeGen(tac, nvar);
-            Location *res_loc = tac->GenLoad(nvar, tmp_base);
+            Location *res_loc = tac->GenLoad(nvar, base_loc);
             return res_loc;
-        } else {// TODO: Add support for classes
+        } else {
+            FnDecl *fd = static_cast<FnDecl*>(field->GetDeclRelativeToBase(baseType));
+            Location **arg_locs = new Location*[actuals->NumElements()];
+            for (int i = 0; i < actuals->NumElements(); i++) {
+                arg_locs[i] = actuals->Nth(i)->CodeGen(tac, nvar);
+            }
+            for (int i = actuals->NumElements() - 1; i >= 0; i--) {
+                tac->GenPushParam(arg_locs[i]);
+            }
+            delete[] arg_locs;
+            tac->GenPushParam(base_loc);
+            bool is_void = fd->GetReturnType()->IsEquivalentTo(Type::voidType);
+            Location *res_loc = tac->GenLCall(nvar, fd->GetLabel(),
+                                              !is_void);
+            tac->GenPopParams((actuals->NumElements() + 1) *
+                              CodeGenerator::VarSize);
+            return res_loc;
 
         }
     }
