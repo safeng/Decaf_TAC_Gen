@@ -236,7 +236,22 @@ class LValue : public Expr
 {
     public:
         LValue(yyltype loc) : Expr(loc) {}
+
+        virtual Location *LValueCodeGen(CodeGenerator *tac,
+                                        int *nvar) = 0;
+        virtual bool is_array_acc();
+        virtual bool is_field_acc();
 };
+
+inline bool LValue::is_array_acc()
+{
+    return false;
+}
+
+inline bool LValue::is_field_acc()
+{
+    return false;
+}
 
 /*** class this_obj **************************************************/
 
@@ -262,9 +277,17 @@ class ArrayAccess : public LValue
     public:
         ArrayAccess(yyltype loc, Expr *base, Expr *subscript);
 
+        bool is_array_acc();
+
         Type *CheckAndComputeResultType();
+        Location *LValueCodeGen(CodeGenerator *tac, int *nvar);
         Location* CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+inline bool ArrayAccess::is_array_acc()
+{
+    return true;
+}
 
 /* Note that field access is used both for qualified names
  * base.field and just field without qualification. We don't
@@ -280,9 +303,23 @@ class FieldAccess : public LValue
     public:
         FieldAccess(Expr *base, Identifier *field); //ok to pass NULL base
 
+        bool is_field_acc();
+        bool null_base();
+
         Type *CheckAndComputeResultType();
+        Location *LValueCodeGen(CodeGenerator *tac, int *nvar);
         Location *CodeGen(CodeGenerator *tac, int *nvar);
 };
+
+inline bool FieldAccess::is_field_acc()
+{
+    return true;
+}
+
+inline bool FieldAccess::null_base()
+{
+    return base == NULL;
+}
 
 /* Like field access, call is used both for qualified base.field()
  * and unqualified field().  We won't figure out until later

@@ -270,9 +270,15 @@ Type *AssignExpr::CheckAndComputeResultType()
 
 Location* AssignExpr::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    Location *left_loc = left->CodeGen(tac, nvar);
+    LValue *left_val = static_cast<LValue*>(left);
+    Location *left_loc = left_val->LValueCodeGen(tac, nvar);
     Location *right_loc = right->CodeGen(tac, nvar);
-    tac->GenAssign(left_loc, right_loc);
+    if (left_val->is_field_acc() &&
+        static_cast<FieldAccess*>(left_val)->null_base()) {
+        tac->GenAssign(left_loc, right_loc);
+    } else {
+        tac->GenStore(left_loc, right_loc);
+    }
     return left_loc;
 }
 
@@ -326,44 +332,46 @@ Type *ArrayAccess::CheckAndComputeResultType()
     }
 }
 
-Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar){
-    Location *tmp_sub = subscript->CodeGen(tac, nvar);
-    Location *tmp_base = base->CodeGen(tac, nvar);
-    Location *tmp_array_len = tac->GenLoad(nvar, tmp_base); // load length value
-    // subscript test
-    Location *tmp_0 = tac->GenLoadConstant(nvar, 0);
-    Location *neg_loc = tac->GenBinaryOp(nvar, "<", tmp_sub,
-                                         tmp_0);
-    Location * tmp_ge_zero = tac->GenBinaryOp(nvar, "==", neg_loc, tmp_0);
-    Location * tmp_lt_len = tac->GenBinaryOp(nvar, "<", tmp_sub, tmp_array_len);
-    Location * tmp_valid_sub = tac->GenBinaryOp(nvar, "&&", tmp_ge_zero,
-                                                tmp_lt_len);
-    char * err_label = tac->NewLabel(); // runtime error label
-    tac->GenIfZ(tmp_valid_sub, err_label); // report runtime error
-    // array access (sub+1)*4
-    char * end_label = tac->NewLabel();
-    Location * tmp_var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
-    Location * tmp_offset = tac->GenBinaryOp(nvar, "*", tmp_sub, tmp_var_size);
-    Location * tmp_loc_= tac->GenBinaryOp(nvar, "+", tmp_offset, tmp_base);
-    // add length offset
-    Location * tmp_loc = tac->GenBinaryOp(nvar, "+", tmp_loc_, tmp_var_size);
-    Location * result = tac->GenLoad(nvar, tmp_loc);
-    tac->GenGoto(end_label);
+Location *ArrayAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *base_val = base->CodeGen(tac, nvar);
+    Location *sub_val = subscript->CodeGen(tac, nvar);
+    Location *array_len = tac->GenLoad(nvar, base_val);
+    // Length test
+    Location *const0 = tac->GenLoadConstant(nvar, 0);
+    Location *neg_len = tac->GenBinaryOp(nvar, "<", sub_val, const0);
+    Location *valid_sub = tac->GenBinaryOp(nvar, "<", sub_val,
+                                           array_len);
+    Location *too_big_sub = tac->GenBinaryOp(nvar, "==", valid_sub,
+                                             const0);
+    Location *invalid_sub = tac->GenBinaryOp(nvar, "||", neg_len,
+                                             too_big_sub);
 
-    // report runtime error
-    tac->GenLabel(err_label);
-    Location * tmp_err_msg = tac->GenLoadConstant(nvar, err_arr_out_of_bounds);
-    tac->GenBuiltInCall(nvar, PrintString, tmp_err_msg);
+    // Report error.
+    char *end_label = tac->NewLabel();
+    tac->GenIfZ(invalid_sub, end_label);
+    Location *err_msg = tac->GenLoadConstant(nvar, err_arr_out_of_bounds);
+    tac->GenBuiltInCall(nvar, PrintString, err_msg);
     tac->GenBuiltInCall(nvar, Halt);
 
+    // Return value
     tac->GenLabel(end_label);
-    return result;
+    Location *var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
+    Location *offset = tac->GenBinaryOp(nvar, "*", sub_val, var_size);
+    Location *loc = tac->GenBinaryOp(nvar, "+", base_val, offset);
+    loc = tac->GenBinaryOp(nvar, "+", loc, var_size);
+    return loc;
 }
 
-FieldAccess::FieldAccess(Expr *b, Identifier *f)
-: LValue(b? Join(b->GetLocation(), f->GetLocation()) : *f->GetLocation())
+Location *ArrayAccess::CodeGen(CodeGenerator *tac, int *nvar)
 {
-    Assert(f != NULL); // b can be be NULL (just means no explicit base)
+    return tac->GenLoad(nvar, LValueCodeGen(tac, nvar));
+}
+
+FieldAccess::FieldAccess(Expr *b, Identifier *f) :
+    LValue(b ? Join(b->GetLocation(), f->GetLocation())
+           : *f->GetLocation())
+{
     base = b;
     if (base) base->SetParent(this);
     (field=f)->SetParent(this);
@@ -405,7 +413,7 @@ Type* FieldAccess::CheckAndComputeResultType()
     return ivar ? (dynamic_cast<VarDecl *>(ivar))->GetDeclaredType() : Type::errorType;
 }
 
-Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
+Location *FieldAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base != NULL) {
         Location *base_loc = base->CodeGen(tac, nvar);
@@ -413,6 +421,16 @@ Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
     } else {
         Decl *ivar = field->GetDeclRelativeToBase(NULL);
         return FindLocation(ivar->GetName());
+    }
+}
+
+Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    if (base != NULL) {
+        Location *base_loc = base->CodeGen(tac, nvar);
+        return NULL; // TODO: Add class support.
+    } else {
+        return LValueCodeGen(tac, nvar);
     }
 }
 
@@ -495,80 +513,81 @@ Location *Call::CodeGen(CodeGenerator *tac, int *nvar)
         } else {// TODO: Add support for classes
 
         }
-        return NULL;
     }
+    return NULL;
+}
 
 
-    NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
-        Assert(c != NULL);
-        (cType=c)->SetParent(this);
+NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
+    Assert(c != NULL);
+    (cType=c)->SetParent(this);
+}
+
+Type* NewExpr::CheckAndComputeResultType() {
+    if (!cType->IsClass()) {
+        ReportError::IdentifierNotDeclared(cType->GetId(), LookingForClass);
+        return Type::errorType;
     }
+    return cType;
+}
 
-    Type* NewExpr::CheckAndComputeResultType() {
-        if (!cType->IsClass()) {
-            ReportError::IdentifierNotDeclared(cType->GetId(), LookingForClass);
-            return Type::errorType;
-        }
-        return cType;
-    }
+NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc)
+{
+    Assert(sz != NULL && et != NULL);
+    (size=sz)->SetParent(this);
+    (elemType=et)->SetParent(this);
+}
 
-    NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc)
-    {
-        Assert(sz != NULL && et != NULL);
-        (size=sz)->SetParent(this);
-        (elemType=et)->SetParent(this);
-    }
+Type *NewArrayExpr::CheckAndComputeResultType()
+{
+    Type *st = size->CheckAndComputeResultType();
+    if (!st->IsCompatibleWith(Type::intType))
+        ReportError::NewArraySizeNotInteger(size);
+    elemType->Check();
+    if (elemType->IsError())
+        return Type::errorType;
+    yyltype none;
+    return new ArrayType(none, elemType);
+}
 
-    Type *NewArrayExpr::CheckAndComputeResultType()
-    {
-        Type *st = size->CheckAndComputeResultType();
-        if (!st->IsCompatibleWith(Type::intType))
-            ReportError::NewArraySizeNotInteger(size);
-        elemType->Check();
-        if (elemType->IsError())
-            return Type::errorType;
-        yyltype none;
-        return new ArrayType(none, elemType);
-    }
+Location *NewArrayExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    Location *size_val = size->CodeGen(tac, nvar);
+    // check size
+    Location *const1 = tac->GenLoadConstant(nvar, 1);
+    Location *invalid_size = tac->GenBinaryOp(nvar, "<", size_val,
+                                              const1);
+    char *end_label = tac->NewLabel();
+    tac->GenIfZ(invalid_size, end_label);
 
-    Location *NewArrayExpr::CodeGen(CodeGenerator *tac, int *nvar){
-        Location *tmp_size = size->CodeGen(tac, nvar);
-        // check size
-        Location *tmp_0 = tac->GenLoadConstant(nvar, 0);
-        Location *tmp_valid_size = tac->GenBinaryOp(nvar, "<", tmp_0, tmp_size);
-        char * err_label = tac->NewLabel();
-        tac->GenIfZ(tmp_valid_size, err_label);
-        // create array
-        Location * tmp_var_size = tac->GenLoadConstant(nvar, CodeGenerator::VarSize);
-        Location * tmp_size_data = tac->GenBinaryOp(nvar, "*", tmp_size, tmp_var_size);
-        Location * tmp_size_total = tac->GenBinaryOp(nvar, "+", tmp_size_data,
-                                                     tmp_var_size);
-        Location * result = tac->GenBuiltInCall(nvar, Alloc, tmp_size_total);
-        // set length in the first filed
-        tac->GenStore(result, tmp_size);
-        char * end_label = tac->NewLabel();
-        tac->GenGoto(end_label);
+    // report runtime error
+    Location *err_msg = tac->GenLoadConstant(nvar, err_arr_bad_size);
+    tac->GenBuiltInCall(nvar, PrintString, err_msg);
+    tac->GenBuiltInCall(nvar, Halt);
+    tac->GenLabel(end_label);
 
-        // report runtime error
-        tac->GenLabel(err_label);
-        Location * err_msg = tac->GenLoadConstant(nvar, err_arr_bad_size);
-        tac->GenBuiltInCall(nvar, PrintString, err_msg);
-        tac->GenBuiltInCall(nvar, Halt);
-        tac->GenLabel(end_label);
-        return result;
-    }
+    // create array
+    Location *var_size = tac->GenLoadConstant(nvar,
+                                              CodeGenerator::VarSize);
+    Location *size_total = tac->GenBinaryOp(nvar, "*", size_val,
+                                            var_size);
+    size_total = tac->GenBinaryOp(nvar, "+", size_total, var_size);
+    Location *result = tac->GenBuiltInCall(nvar, Alloc, size_total);
+    tac->GenStore(result, size_val);
+    return result;
+}
 
-    /*** Read classes *****************************************************
-     *
-     *  Define ReadInteger expression node class read_int and ReadLine exp-
-     *  ression node class read_line                                     */
+/*** Read classes *****************************************************
+ *
+ *  Define ReadInteger expression node class read_int and ReadLine exp-
+ *  ression node class read_line                                     */
 
-    Location *ReadIntegerExpr::CodeGen(CodeGenerator *tac, int *nvar)
-    {
-        return tac->GenBuiltInCall(nvar, ReadInteger);
-    }
+Location *ReadIntegerExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    return tac->GenBuiltInCall(nvar, ReadInteger);
+}
 
-    Location *ReadLineExpr::CodeGen(CodeGenerator *tac, int *nvar)
-    {
-        return tac->GenBuiltInCall(nvar, ReadLine);
-    }
+Location *ReadLineExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    return tac->GenBuiltInCall(nvar, ReadLine);
+}
