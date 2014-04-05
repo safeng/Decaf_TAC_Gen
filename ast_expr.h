@@ -347,7 +347,9 @@ class NewExpr : public Expr
 
     public:
         NewExpr(yyltype loc, NamedType *clsType);
+
         Type *CheckAndComputeResultType();
+        Location *CodeGen(CodeGenerator *tac, int *nvar);
 };
 
 class NewArrayExpr : public Expr

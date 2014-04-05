@@ -419,7 +419,7 @@ Type* FieldAccess::CheckAndComputeResultType()
 int FieldAccess::offset()
 {
     Type *baseType = base->CheckAndComputeResultType();
-    Decl *base_class = static_cast<ClassDecl*>(field->GetDeclRelativeToBase(baseType));
+    ClassDecl *base_class = static_cast<ClassDecl*>(baseType->GetDeclForType());
     return base_class->GetClassLayout()->Lookup(field->GetName());
 }
 
@@ -532,12 +532,25 @@ NewExpr::NewExpr(yyltype loc, NamedType *c) : Expr(loc) {
     (cType=c)->SetParent(this);
 }
 
-Type* NewExpr::CheckAndComputeResultType() {
+Type* NewExpr::CheckAndComputeResultType()
+{
     if (!cType->IsClass()) {
         ReportError::IdentifierNotDeclared(cType->GetId(), LookingForClass);
         return Type::errorType;
     }
     return cType;
+}
+
+Location *NewExpr::CodeGen(CodeGenerator *tac, int *nvar)
+{
+    ClassDecl *base_class = static_cast<ClassDecl*>(cType->GetDeclForType());
+    int num = base_class->GetClassLayout()->NumEntries() + 1;
+    int obj_size = num * CodeGenerator::VarSize;
+    Location *const_size = tac->GenLoadConstant(nvar, obj_size);
+    Location *result = tac->GenBuiltInCall(nvar, Alloc, const_size);
+    Location *vtable = tac->GenLoadLabel(nvar, base_class->GetName());
+    tac->GenStore(result, vtable);
+    return result;
 }
 
 NewArrayExpr::NewArrayExpr(yyltype loc, Expr *sz, Type *et) : Expr(loc)
