@@ -87,7 +87,7 @@ void ClassDecl::PrepareClassLayout()
         *classLayout = *ext->GetClassLayout();
         offset += classLayout->NumEntries()*CodeGenerator::VarSize;
     }
-    for(int i = 0; members->NumElements(); ++i){
+    for(int i = 0; i < members->NumElements(); ++i){
         if(members->Nth(i)->IsVarDecl()){
            classLayout->Enter(members->Nth(i)->GetName(), offset);
            offset += CodeGenerator::VarSize;
@@ -108,7 +108,7 @@ void ClassDecl::PrepareFnLayout()
         *fnTable = *ext->GetFnTable();
     }
     int fnLayout_size = fnLayout->NumElements();
-    for(int i = 0; members->NumElements(); ++i) {
+    for(int i = 0; i < members->NumElements(); ++i) {
         if(members->Nth(i)->IsFnDecl()){
             FnDecl * fn_decl = static_cast<FnDecl* >(members->Nth(i));
             const char *fn_label = fn_decl->GetLabel();
@@ -132,12 +132,12 @@ void ClassDecl::PrepareFnLayout()
 Location *ClassDecl::CodeGen(CodeGenerator *tac, int *var_num)
 {
     // Gen code for all member functions
+    PrepareClassLayout();
     for(int i = 0; i < members->NumElements(); ++i){
         if(members->Nth(i)->IsFnDecl()){
             members->Nth(i)->CodeGen(tac, var_num);
         }
     }
-    PrepareClassLayout();
     PrepareFnLayout();
     tac->GenVTable(this->GetName(), fnTable);
     return NULL;
