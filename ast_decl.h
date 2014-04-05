@@ -67,10 +67,10 @@ class ClassDecl : public Decl
         bool IsCompatibleWith(Type *type);
         Type *GetDeclaredType() { return cType; } //  used by "this"
         const char *GetClassName() { return id->GetName(); }
-        Hashtable<int> *GetClassLayout() { Assert(classLayout); return classLayout; }
+        Hashtable<int> *GetClassLayout() { return classLayout; }
         List<FnDecl *> *GetFnLayout() { return fnLayout; }
         int GetFnDeclIdx(FnDecl *fn_decl);
-        List<const char *> *GetFnTable() { Assert(fnTable); return fnTable; }
+        List<const char *> *GetFnTable() { return fnTable; }
         Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
 
