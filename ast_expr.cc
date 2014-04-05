@@ -276,6 +276,9 @@ Location* AssignExpr::CodeGen(CodeGenerator *tac, int *nvar)
     if (left_val->is_field_acc() &&
         static_cast<FieldAccess*>(left_val)->null_base()) {
         tac->GenAssign(left_loc, right_loc);
+    } else if (left_val->is_field_acc()) {
+        FieldAccess *left_acc = static_cast<FieldAccess*>(left_val);
+        tac->GenStore(left_loc, right_loc, left_acc->offset());
     } else {
         tac->GenStore(left_loc, right_loc);
     }
@@ -413,11 +416,17 @@ Type* FieldAccess::CheckAndComputeResultType()
     return ivar ? (dynamic_cast<VarDecl *>(ivar))->GetDeclaredType() : Type::errorType;
 }
 
+int FieldAccess::offset()
+{
+    Type *baseType = base->CheckAndComputeResultType();
+    Decl *base_class = static_cast<ClassDecl*>(field->GetDeclRelativeToBase(baseType));
+    return base_class->GetClassLayout()->Lookup(field->GetName());
+}
+
 Location *FieldAccess::LValueCodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base != NULL) {
-        Location *base_loc = base->CodeGen(tac, nvar);
-        return NULL; // TODO: Add class support.
+        return base->CodeGen(tac, nvar);
     } else {
         Decl *ivar = field->GetDeclRelativeToBase(NULL);
         return FindLocation(ivar->GetName());
@@ -428,7 +437,7 @@ Location *FieldAccess::CodeGen(CodeGenerator *tac, int *nvar)
 {
     if (base != NULL) {
         Location *base_loc = base->CodeGen(tac, nvar);
-        return NULL; // TODO: Add class support.
+        return tac->GenLoad(nvar, base_loc, offset());
     } else {
         return LValueCodeGen(tac, nvar);
     }

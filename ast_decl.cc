@@ -76,7 +76,7 @@ Scope *ClassDecl::PrepareScope()
 void ClassDecl::PrepareClassLayout()
 {
     if(classLayout) return classLayout;
-    classLayout = new Hashtable<int>(); 
+    classLayout = new Hashtable<int>();
     int offset = fieldOffset;
     if(extends) {
         ClassDecl *ext = dynamic_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));

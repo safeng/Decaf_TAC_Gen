@@ -307,6 +307,7 @@ class FieldAccess : public LValue
         bool null_base();
 
         Type *CheckAndComputeResultType();
+        int offset();
         Location *LValueCodeGen(CodeGenerator *tac, int *nvar);
         Location *CodeGen(CodeGenerator *tac, int *nvar);
 };
