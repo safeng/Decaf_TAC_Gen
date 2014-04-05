@@ -53,6 +53,8 @@ class ClassDecl : public Decl
         NamedType *extends;
         NamedType *cType;
         Hashtable<int> *classLayout;
+        List<const char *> *fnTable; // function table to generate virtual table
+        List<FnDecl *> *fnLayout;
         static const int fieldOffset = 4;
 
     public:
@@ -60,9 +62,15 @@ class ClassDecl : public Decl
         void Check();
         bool IsClassDecl() { return true; }
         Scope *PrepareScope();
+        void PrepareClassLayout();
+        void PrepareFnLayout();
         bool IsCompatibleWith(Type *type);
         Type *GetDeclaredType() { return cType; } //  used by "this"
         const char *GetClassName() { return id->GetName(); }
+        Hashtable<int> *GetClassLayout() { return classLayout; }
+        List<FnDecl *> *GetFnLayout() { return fnLayout; }
+        List<const char *> *GetFnTable() { return fnTable; }
+        Location* CodeGen(CodeGenerator *tac, int *var_num);
 };
 
 /*** FnDecl **********************************************************/

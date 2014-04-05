@@ -46,6 +46,9 @@ ClassDecl::ClassDecl(Identifier *n, NamedType *ex, List<Decl*> *m) : Decl(n) {
     cType = new NamedType(n);
     cType->SetParent(this);
     cType->SetDeclForType(this);
+    classLayout = NULL;
+    fnLayout = NULL;
+    fnTable = NULL;
 }
 
 void ClassDecl::Check() {
@@ -75,11 +78,11 @@ Scope *ClassDecl::PrepareScope()
 
 void ClassDecl::PrepareClassLayout()
 {
-    if(classLayout) return classLayout;
-    classLayout = new Hashtable<int>();
+    if(classLayout) return;
+    classLayout = new Hashtable<int>(); 
     int offset = fieldOffset;
     if(extends) {
-        ClassDecl *ext = dynamic_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
+        ClassDecl *ext = static_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
         ext->PrepareClassLayout();
         *classLayout = *ext->GetClassLayout();
         offset += classLayout->NumEntries()*CodeGenerator::VarSize;
@@ -90,6 +93,54 @@ void ClassDecl::PrepareClassLayout()
            offset += CodeGenerator::VarSize;
         }
     }
+}
+
+
+void ClassDecl::PrepareFnLayout()
+{
+    if(fnLayout) return;
+    fnLayout = new List<FnDecl *>();
+    fnTable = new List<const char *>();
+    if(extends){
+        ClassDecl *ext = static_cast<ClassDecl*>(parent->FindDecl(extends->GetId()));
+        ext->PrepareFnLayout();
+        *fnLayout = *ext->GetFnLayout();
+        *fnTable = *ext->GetFnTable();
+    }
+    int fnLayout_size = fnLayout->NumElements();
+    for(int i = 0; members->NumElements(); ++i) {
+        if(members->Nth(i)->IsFnDecl()){
+            FnDecl * fn_decl = static_cast<FnDecl* >(members->Nth(i));
+            const char *fn_label = fn_decl->GetLabel();
+            int idx = -1;
+            for(int j = 0; j<fnLayout_size; ++j){
+                if(strcmp(fn_decl->GetName(), fnLayout->Nth(j)->GetName()) == 0){
+                    idx = j;
+                    break;
+                }
+            }
+            if(idx == -1){ // new function
+                fnLayout->Append(fn_decl);
+                fnTable->Append(fn_label);
+            }else { // update function label as derived class
+                fnTable->Update(idx, fn_label);
+            }
+        }
+    }
+}
+
+Location *ClassDecl::CodeGen(CodeGenerator *tac, int *var_num)
+{
+    // Gen code for all member functions
+    for(int i = 0; i < members->NumElements(); ++i){
+        if(members->Nth(i)->IsFnDecl()){
+            members->Nth(i)->CodeGen(tac, var_num);
+        }
+    }
+    PrepareClassLayout();
+    PrepareFnLayout();
+    tac->GenVTable(this->GetName(), fnTable);
+    return NULL;
 }
 
 bool ClassDecl::IsCompatibleWith(Type *other) {
@@ -173,11 +224,20 @@ bool FnDecl::MatchesPrototype(FnDecl *other)
 void FnDecl::PrepareVarLocation()
 {
     varLocation = new Hashtable<Location*>();
+    int this_offset = 0;
+    if(IsMethodDecl()){ // add 'this'
+        Location *this_loc = new Location(fpRelative,
+                                     CodeGenerator::OffsetToFirstParam,
+                                     "this");
+        varLocation->Enter("this", this_loc);
+        this_offset = 1;
+    }
+
     for (int i = 0; i < formals->NumElements(); i++) {
         const char *vname = formals->Nth(i)->GetName();
         Location *loc = new Location(fpRelative,
                                      CodeGenerator::OffsetToFirstParam +
-                                     CodeGenerator::VarSize * i,
+                                     CodeGenerator::VarSize * (i + this_offset),
                                      vname);
         varLocation->Enter(vname, loc);
     }

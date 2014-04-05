@@ -418,7 +418,7 @@ Type* FieldAccess::CheckAndComputeResultType()
 
 int FieldAccess::offset()
 {
-    Type *baseType = base->CheckAndComputeResultType();
+    NamedType *baseType = static_cast<NamedType*>(base->CheckAndComputeResultType());
     ClassDecl *base_class = static_cast<ClassDecl*>(baseType->GetDeclForType());
     return base_class->GetClassLayout()->Lookup(field->GetName());
 }

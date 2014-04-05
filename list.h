@@ -5,6 +5,7 @@
 
 #include <deque>
 #include <algorithm>
+#include <iterator>
 #include "utility.h"  // for Assert()
 #include "scope.h"
 
@@ -55,6 +56,11 @@ template<class Element> class List {
         void RemoveAt(int index)
         { Assert(index >= 0 && index < NumElements());
             elems.erase(elems.begin() + index); }
+
+        void Update(int idx, Element e)
+        {
+            elems[idx] = e;
+        }
 
         // Removes all elements of a specific value
         void Remove(const Element &elem)
